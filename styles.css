@@ -1274,3 +1274,66 @@ header h1 {
     grid-template-columns: 1fr;
   }
 }
+
+/* 单词分组样式 */
+.vocab-group {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
+.vocab-group-header {
+  background-color: var(--bg-tertiary);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.group-word {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent-primary);
+  margin-right: 12px;
+}
+
+.group-translation {
+  background-color: var(--bg-secondary);
+  color: var(--text-secondary);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  flex: 1;
+}
+
+.group-count {
+  color: var(--text-tertiary);
+  font-size: 14px;
+  margin-left: 8px;
+}
+
+.vocab-group-items {
+  padding: 12px 0;
+}
+
+.grouped-vocab-item {
+  margin: 0 20px 8px 20px;
+  border-left: 3px solid var(--accent-primary);
+  padding-left: 12px;
+}
+
+.grouped-vocab-item:last-child {
+  margin-bottom: 0;
+}
+
+.grouped-vocab-item:hover {
+  border-left-color: var(--accent-secondary);
+}
+
+.grouped-vocab-item.selected {
+  border-left-color: var(--accent-success);
+  background-color: rgba(166, 227, 161, 0.05);
+}

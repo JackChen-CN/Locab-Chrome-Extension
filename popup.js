@@ -8,6 +8,7 @@ let currentTab = 'list';
 let currentCardIndex = 0;
 let reviewVocabulary = [];
 let selectedWordId = null;
+let groupingEnabled = false; // 分组显示开关
 
 // DOM elements
 let searchInput, clearSearchBtn, clearAllBtn, settingsBtn;
@@ -20,6 +21,7 @@ let detailEmptyEl, detailLoadedEl, detailWordEl, detailTranslationEl, detailSent
 let detailUrlEl, detailTimeEl, detailPositionEl, detailLocateBtn, detailDeleteBtn;
 let statTotalEl, statTodayEl, statStorageEl, statPendingEl;
 let quickReviewBtn, quickExportBtn, quickSettingsBtn;
+let toggleGroupingBtn;
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', init);
@@ -67,6 +69,7 @@ function init() {
   quickReviewBtn = document.getElementById('quick-review-btn');
   quickExportBtn = document.getElementById('quick-export-btn');
   quickSettingsBtn = document.getElementById('quick-settings-btn');
+  toggleGroupingBtn = document.getElementById('toggle-grouping');
 
   // Set up event listeners
   setupEventListeners();
@@ -81,6 +84,9 @@ function init() {
       loadVocabulary();
     }
   });
+
+  // Update grouping button state
+  updateGroupingButton();
 
   // Set up tab switching
   setupTabs();
@@ -103,6 +109,11 @@ function setupEventListeners() {
   // Settings functionality
   if (settingsBtn) {
     settingsBtn.addEventListener('click', openSettings);
+  }
+
+  // Grouping toggle functionality
+  if (toggleGroupingBtn) {
+    toggleGroupingBtn.addEventListener('click', toggleGrouping);
   }
 
   // Review functionality
@@ -129,6 +140,31 @@ function setupEventListeners() {
   }
   if (quickSettingsBtn) {
     quickSettingsBtn.addEventListener('click', openSettings);
+  }
+}
+
+// Toggle grouping display
+function toggleGrouping() {
+  groupingEnabled = !groupingEnabled;
+  updateGroupingButton();
+  updateVocabularyList();
+}
+
+// Update grouping button state
+function updateGroupingButton() {
+  if (!toggleGroupingBtn) return;
+
+  const icon = toggleGroupingBtn.querySelector('i');
+  const text = toggleGroupingBtn.querySelector('span');
+
+  if (groupingEnabled) {
+    icon.className = 'fas fa-object-ungroup';
+    text.textContent = '独立';
+    toggleGroupingBtn.title = '切换为独立显示';
+  } else {
+    icon.className = 'fas fa-layer-group';
+    text.textContent = '分组';
+    toggleGroupingBtn.title = '切换为分组显示';
   }
 }
 
@@ -196,6 +232,186 @@ async function loadVocabulary() {
   }
 }
 
+// Group vocabulary by word (case-insensitive)
+function groupVocabularyByWord(vocabulary) {
+  const groups = {};
+  vocabulary.forEach(item => {
+    const wordKey = item.wordLower || item.word.toLowerCase();
+    if (!groups[wordKey]) {
+      groups[wordKey] = {
+        word: item.word,
+        wordKey: wordKey,
+        translations: item.translations || [],
+        items: []
+      };
+    }
+    groups[wordKey].items.push(item);
+  });
+  return Object.values(groups);
+}
+
+// Select the most appropriate translation based on sentence context
+function selectTranslationByContext(word, sentence, translations) {
+  if (!translations || translations.length <= 1) {
+    return translations[0] || '';
+  }
+
+  try {
+    const nlp = window.nlp || (typeof nlp !== 'undefined' ? nlp : null);
+    if (!nlp) {
+      console.warn('NLP库不可用，使用第一个翻译');
+      return translations[0];
+    }
+
+    // Analyze sentence to get part-of-speech of the word
+    const doc = nlp(sentence);
+    const wordMatch = doc.match(word);
+
+    if (!wordMatch.found) {
+      return translations[0];
+    }
+
+    // Get part-of-speech tags
+    const tags = wordMatch.out('tags');
+    const pos = tags.length > 0 ? tags[0].tags : [];
+
+    // Select translation based on part-of-speech
+    let selected = translations[0];
+
+    // Simple rules: verb > noun > adjective
+    if (pos.some(tag => tag.includes('Verb'))) {
+      selected = findTranslationByPos(translations, 'verb') || selected;
+    } else if (pos.some(tag => tag.includes('Noun'))) {
+      selected = findTranslationByPos(translations, 'noun') || selected;
+    } else if (pos.some(tag => tag.includes('Adjective'))) {
+      selected = findTranslationByPos(translations, 'adj') || selected;
+    }
+
+    return selected;
+  } catch (error) {
+    console.error('语境分析错误:', error);
+    return translations[0];
+  }
+}
+
+// Helper function: find translation by part-of-speech indicators
+function findTranslationByPos(translations, pos) {
+  const posIndicators = {
+    verb: ['动', 'to ', 'ing', 'ed', 'v.', 'verb'],
+    noun: ['名', 'the ', 'a ', 'an ', 'n.', 'noun'],
+    adj: ['形', '的', 'able', 'ive', 'adj.', 'adjective']
+  };
+
+  const indicators = posIndicators[pos] || [];
+  return translations.find(t =>
+    indicators.some(indicator =>
+      t.toLowerCase().includes(indicator.toLowerCase())
+    )
+  );
+}
+
+// Render a single vocabulary item
+function renderVocabularyItem(item, isGrouped = false) {
+  const template = document.getElementById('vocab-item-template');
+  const clone = template.content.cloneNode(true);
+  const vocabItem = clone.querySelector('.vocab-item');
+
+  if (isGrouped) {
+    vocabItem.classList.add('grouped-vocab-item');
+  }
+
+  // Set data attribute for identification
+  vocabItem.dataset.id = item.id;
+
+  // Highlight if selected
+  if (selectedWordId === item.id) {
+    vocabItem.classList.add('selected');
+  }
+
+  // Fill in data
+  const wordEl = clone.querySelector('.vocab-word');
+  const translationEl = clone.querySelector('.vocab-translation');
+  const sentenceEl = clone.querySelector('.vocab-sentence');
+  const urlEl = clone.querySelector('.meta-url');
+  const timeEl = clone.querySelector('.meta-time');
+  const lineEl = clone.querySelector('.meta-line');
+  const wordIndexEl = clone.querySelector('.meta-word-index');
+
+  wordEl.textContent = item.word;
+  // Use context analysis for each individual item
+  const itemTranslation = selectTranslationByContext(item.word, item.sentence, item.translations || []);
+  translationEl.textContent = itemTranslation;
+  sentenceEl.textContent = truncateText(item.sentence, 100);
+  urlEl.textContent = new URL(item.url).hostname;
+  timeEl.textContent = formatTime(item.timestamp);
+  lineEl.textContent = item.line;
+  wordIndexEl.textContent = item.wordIndex;
+
+  // Set up button event listeners
+  const locateBtn = clone.querySelector('.locate-btn');
+  const deleteBtn = clone.querySelector('.delete-btn');
+
+  locateBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    handleLocateWord(item);
+  });
+
+  deleteBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    handleDeleteWord(item.id);
+  });
+
+  // Add click event to select word
+  vocabItem.addEventListener('click', () => {
+    selectWordItem(item);
+  });
+
+  return { element: clone, container: vocabItem };
+}
+
+// Render vocabulary without grouping
+function renderUngroupedVocabulary() {
+  const itemTemplate = document.getElementById('vocab-item-template');
+
+  filteredVocabulary.forEach((item, index) => {
+    const { element } = renderVocabularyItem(item, false);
+    vocabularyList.appendChild(element);
+  });
+}
+
+// Render vocabulary with grouping
+function renderGroupedVocabulary() {
+  const groups = groupVocabularyByWord(filteredVocabulary);
+  const groupTemplate = document.getElementById('vocab-group-template');
+  const itemTemplate = document.getElementById('vocab-item-template');
+
+  groups.forEach(group => {
+    const groupClone = groupTemplate.content.cloneNode(true);
+    const groupEl = groupClone.querySelector('.vocab-group');
+    const groupHeader = groupClone.querySelector('.vocab-group-header');
+    const groupWordEl = groupClone.querySelector('.group-word');
+    const groupTranslationEl = groupClone.querySelector('.group-translation');
+    const groupCountEl = groupClone.querySelector('.group-count');
+    const groupItemsContainer = groupClone.querySelector('.vocab-group-items');
+
+    // Set group header
+    groupWordEl.textContent = group.word;
+    // Use context analysis to select the most appropriate translation for the group
+    const firstItem = group.items[0];
+    const groupTranslation = selectTranslationByContext(group.word, firstItem.sentence, group.translations);
+    groupTranslationEl.textContent = groupTranslation;
+    groupCountEl.textContent = `(${group.items.length}个位置)`;
+
+    // Render each item in the group
+    group.items.forEach((item, index) => {
+      const { element } = renderVocabularyItem(item, true);
+      groupItemsContainer.appendChild(element);
+    });
+
+    vocabularyList.appendChild(groupClone);
+  });
+}
+
 // Update vocabulary list UI
 function updateVocabularyList() {
   vocabularyList.innerHTML = '';
@@ -212,59 +428,11 @@ function updateVocabularyList() {
     return;
   }
 
-  const template = document.getElementById('vocab-item-template');
-
-  filteredVocabulary.forEach((item, index) => {
-    const clone = template.content.cloneNode(true);
-    const vocabItem = clone.querySelector('.vocab-item');
-
-    // Set data attribute for identification
-    vocabItem.dataset.id = item.id;
-    vocabItem.dataset.index = index;
-
-    // Highlight if selected
-    if (selectedWordId === item.id) {
-      vocabItem.classList.add('selected');
-    }
-
-    // Fill in data
-    const wordEl = clone.querySelector('.vocab-word');
-    const translationEl = clone.querySelector('.vocab-translation');
-    const sentenceEl = clone.querySelector('.vocab-sentence');
-    const urlEl = clone.querySelector('.meta-url');
-    const timeEl = clone.querySelector('.meta-time');
-    const lineEl = clone.querySelector('.meta-line');
-    const wordIndexEl = clone.querySelector('.meta-word-index');
-
-    wordEl.textContent = item.word;
-    translationEl.textContent = item.translation;
-    sentenceEl.textContent = truncateText(item.sentence, 100);
-    urlEl.textContent = new URL(item.url).hostname;
-    timeEl.textContent = formatTime(item.timestamp);
-    lineEl.textContent = item.line;
-    wordIndexEl.textContent = item.wordIndex;
-
-    // Set up button event listeners
-    const locateBtn = clone.querySelector('.locate-btn');
-    const deleteBtn = clone.querySelector('.delete-btn');
-
-    locateBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      handleLocateWord(item);
-    });
-
-    deleteBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      handleDeleteWord(item.id);
-    });
-
-    // Add click event to select word
-    vocabItem.addEventListener('click', () => {
-      selectWordItem(item);
-    });
-
-    vocabularyList.appendChild(clone);
-  });
+  if (groupingEnabled) {
+    renderGroupedVocabulary();
+  } else {
+    renderUngroupedVocabulary();
+  }
 }
 
 
