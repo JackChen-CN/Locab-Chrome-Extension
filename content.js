@@ -6,8 +6,10 @@ let toastContainer = null;
 
 // Message listener for background script and popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  console.log("Content script received message:", request.action, request);
   switch (request.action) {
     case "getWordContext":
+      console.log("Handling getWordContext request");
       handleGetWordContext(request, sendResponse);
       return true; // Keep channel open for async response
 
@@ -30,9 +32,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 // Handle request to get word context (called when user marks a word)
 async function handleGetWordContext(request, sendResponse) {
+  console.log("handleGetWordContext called with word:", request.word, "translation:", request.translation);
   try {
     const selection = window.getSelection();
+    console.log("Current selection:", selection?.toString());
     if (!selection || selection.isCollapsed) {
+      console.log("No valid selection found");
       throw new Error("No text selected");
     }
 
@@ -52,6 +57,7 @@ async function handleGetWordContext(request, sendResponse) {
     // Get XPath of the element
     const xpath = getXPath(blockElement);
 
+    console.log("Word context extracted:", { sentence, line, wordIndex, xpath, offset });
     sendResponse({
       success: true,
       sentence: sentence,

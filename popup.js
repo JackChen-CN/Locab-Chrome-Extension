@@ -9,7 +9,7 @@ let currentCardIndex = 0;
 let reviewVocabulary = [];
 
 // DOM elements
-let searchInput, clearSearchBtn, exportBtn, clearAllBtn;
+let searchInput, clearSearchBtn, exportBtn, clearAllBtn, settingsBtn;
 let vocabularyList, wordCountEl, lastUpdatedEl;
 let prevCardBtn, nextCardBtn, knowBtn, dontKnowBtn, locateCardBtn;
 let cardWordEl, cardTranslationEl, cardSentenceEl, cardLineEl, cardWordIndexEl, cardSourceEl;
@@ -24,6 +24,7 @@ function init() {
   clearSearchBtn = document.getElementById('clear-search');
   exportBtn = document.getElementById('export-btn');
   clearAllBtn = document.getElementById('clear-all-btn');
+  settingsBtn = document.getElementById('settings-btn');
   vocabularyList = document.getElementById('vocabulary-list');
   wordCountEl = document.getElementById('word-count');
   lastUpdatedEl = document.getElementById('last-updated');
@@ -49,6 +50,14 @@ function init() {
   // Load vocabulary data
   loadVocabulary();
 
+  // Listen for storage changes to update vocabulary list
+  chrome.storage.onChanged.addListener((changes, namespace) => {
+    if (namespace === 'local' && changes.vocabulary) {
+      console.log('Vocabulary storage changed, updating list');
+      loadVocabulary();
+    }
+  });
+
   // Set up tab switching
   setupTabs();
 }
@@ -67,6 +76,11 @@ function setupEventListeners() {
 
   // Clear all functionality
   clearAllBtn.addEventListener('click', handleClearAll);
+
+  // Settings functionality
+  if (settingsBtn) {
+    settingsBtn.addEventListener('click', openSettings);
+  }
 
   // Review functionality
   prevCardBtn.addEventListener('click', showPreviousCard);
@@ -109,8 +123,10 @@ function setupTabs() {
 
 // Load vocabulary from storage
 async function loadVocabulary() {
+  console.log("loadVocabulary called");
   try {
     const response = await chrome.runtime.sendMessage({ action: "getAllVocabulary" });
+    console.log("Loaded vocabulary from storage:", response?.length || 0, "items");
     vocabulary = response || [];
     filteredVocabulary = [...vocabulary];
 
@@ -443,6 +459,29 @@ function formatTime(timestamp) {
     // Older
     return `${date.getFullYear()}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getDate().toString().padStart(2, '0')}`;
   }
+}
+
+// Open settings page
+function openSettings() {
+  console.log("Opening settings page");
+
+  // Get current settings to determine how to open settings
+  chrome.storage.local.get({ settings: { uiMode: 'tab' } }, (data) => {
+    const uiMode = data.settings.uiMode || 'tab';
+
+    if (uiMode === 'popup') {
+      // In popup mode, open settings in current popup
+      window.location.href = 'settings.html';
+    } else {
+      // In tab mode, open settings in new tab
+      chrome.tabs.create({
+        url: chrome.runtime.getURL('settings.html'),
+        active: true
+      });
+      // Close the popup if it's open
+      window.close();
+    }
+  });
 }
 
 // Show temporary message

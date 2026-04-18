@@ -1,39 +1,67 @@
 // Service worker for Locab Chrome Extension
 // Handles context menu, API calls, and storage operations
 
-// Create context menu on extension installation
-chrome.runtime.onInstalled.addListener(() => {
+// Default settings
+const DEFAULT_SETTINGS = {
+  uiMode: 'tab', // 'tab' or 'popup'
+  autoTranslation: true,
+  translationAPI: 'mymemory', // 'mymemory' or 'libre'
+  lastModified: Date.now()
+};
+
+// Create context menu and initialize settings on extension installation
+chrome.runtime.onInstalled.addListener(async () => {
+  // Create context menu
   chrome.contextMenus.create({
     id: "mark-vocab",
     title: "标记生词",
     contexts: ["selection"]
   });
+
+  // Initialize settings if they don't exist
+  const data = await chrome.storage.local.get({ settings: null });
+  if (data.settings === null) {
+    await chrome.storage.local.set({ settings: DEFAULT_SETTINGS });
+    console.log("Default settings initialized");
+  }
+
+  // Update extension action based on saved settings
+  const settings = data.settings || DEFAULT_SETTINGS;
+  await updateExtensionAction(settings.uiMode);
+
   console.log("Locab extension installed and context menu created.");
 });
 
 // Context menu click handler
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === "mark-vocab") {
+    console.log("Context menu clicked, marking vocab:", info.selectionText);
     const selectedText = info.selectionText?.trim();
 
     // Validate selection: must be a single word without spaces
     if (!selectedText || selectedText.includes(' ')) {
+      console.log("Invalid selection - empty or contains spaces");
       showNotification("请只选择一个单词（不含空格）");
       return;
     }
 
     try {
       // Get translation via MyMemory API
+      console.log("Fetching translation for:", selectedText);
       const translation = await fetchTranslation(selectedText);
+      console.log("Translation result:", translation);
 
       // Send message to content script to get context info
-      const response = await chrome.tabs.sendMessage(tab.id, {
+      console.log("Sending message to content script, tab ID:", tab.id);
+      const response = await sendMessageToContentScript(tab.id, {
         action: "getWordContext",
         word: selectedText,
         translation: translation
       });
+      console.log("Content script response:", response);
 
       if (response && response.success) {
+        console.log("Content script returned success, saving record");
         // Save to storage
         await saveVocabularyRecord({
           id: generateId(selectedText, response.sentence, tab.url),
@@ -48,8 +76,10 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
           offset: response.offset
         });
 
+        console.log("Vocabulary saved successfully");
         showNotification(`已标记单词: ${selectedText}`);
       } else {
+        console.log("Content script returned failure or no response");
         showNotification("获取单词上下文失败，请重试");
       }
     } catch (error) {
@@ -61,31 +91,82 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
 // Fetch translation from MyMemory API
 async function fetchTranslation(word) {
+  console.log("Attempting to translate word:", word);
   const apiUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=en|zh`;
 
   // Use AbortController for timeout
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 5000);
+  const timeoutId = setTimeout(() => controller.abort(), 10000); // Increased timeout to 10s
 
   try {
     const response = await fetch(apiUrl, { signal: controller.signal });
     clearTimeout(timeoutId);
 
-    if (!response.ok) throw new Error(`API response: ${response.status}`);
+    if (!response.ok) {
+      console.error(`Translation API HTTP error: ${response.status} ${response.statusText}`);
+      throw new Error(`API response: ${response.status}`);
+    }
 
     const data = await response.json();
+    console.log("Translation API response data:", data);
     const translation = data.responseData?.translatedText;
+    console.log("Extracted translation:", translation);
 
     if (translation && translation.trim() !== word) {
-      return translation.trim();
+      const trimmed = translation.trim();
+      console.log("Returning translation:", trimmed);
+      return trimmed;
+    } else {
+      console.log("Translation empty or same as original word");
+      // Return a placeholder indicating no translation found
+      return `[无翻译结果: ${word}]`;
     }
   } catch (error) {
     console.warn("Translation API failed:", error);
     clearTimeout(timeoutId);
+
+    // Try a fallback API if the main one fails
+    console.log("Trying fallback translation API...");
+    try {
+      const fallbackTranslation = await tryFallbackTranslation(word);
+      if (fallbackTranslation) {
+        return fallbackTranslation;
+      }
+    } catch (fallbackError) {
+      console.warn("Fallback translation also failed:", fallbackError);
+    }
   }
 
-  // Fallback: return placeholder, content script will prompt user
-  return `[翻译获取失败，请手动输入]`;
+  // Final fallback: return placeholder
+  console.log("All translation attempts failed, returning placeholder");
+  return `[翻译获取失败，请手动输入: ${word}]`;
+}
+
+// Try fallback translation API (LibreTranslate)
+async function tryFallbackTranslation(word) {
+  // LibreTranslate public instance (may be rate limited)
+  const apiUrl = `https://libretranslate.com/translate`;
+
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      q: word,
+      source: 'en',
+      target: 'zh',
+      format: 'text',
+      api_key: '' // Public instance doesn't require key
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Fallback API response: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.translatedText;
 }
 
 // Prompt user for manual translation
@@ -265,5 +346,83 @@ async function locateWord(record) {
   } catch (error) {
     console.error("Error locating word:", error);
     return false;
+  }
+}
+
+// Helper function to send message to content script with retry
+async function sendMessageToContentScript(tabId, message, maxRetries = 2) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`Sending message to content script (attempt ${attempt}/${maxRetries})`, message);
+      const response = await chrome.tabs.sendMessage(tabId, message);
+      console.log(`Message sent successfully on attempt ${attempt}`);
+      return response;
+    } catch (error) {
+      console.warn(`Failed to send message on attempt ${attempt}:`, error);
+
+      if (attempt === maxRetries) {
+        throw error; // Re-throw on final attempt
+      }
+
+      // Try to inject content script if not present
+      try {
+        console.log("Attempting to inject content script...");
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          files: ['content.js']
+        });
+        console.log("Content script injected, waiting a bit...");
+        // Wait a moment for the script to initialize
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (injectError) {
+        console.warn("Failed to inject content script:", injectError);
+        // Continue to next retry anyway
+      }
+    }
+  }
+}
+
+// Handle extension icon click (only triggers when popup is not set)
+chrome.action.onClicked.addListener(async (tab) => {
+  console.log("Extension icon clicked - opening in tab mode");
+
+  try {
+    // This should only happen in tab mode, but double-check settings
+    const data = await chrome.storage.local.get({ settings: DEFAULT_SETTINGS });
+    const settings = data.settings || DEFAULT_SETTINGS;
+    const uiMode = settings.uiMode || DEFAULT_SETTINGS.uiMode;
+
+    if (uiMode === 'popup') {
+      console.warn("Popup mode but onClicked triggered - popup may not be set correctly");
+      // Try to enable popup and open it
+      await updateExtensionAction('popup');
+      return;
+    }
+
+    // Tab mode: open new tab with the vocabulary manager
+    console.log("Opening vocabulary manager in new tab");
+    await chrome.tabs.create({
+      url: chrome.runtime.getURL('popup.html'),
+      active: true
+    });
+  } catch (error) {
+    console.error("Error handling extension icon click:", error);
+  }
+});
+
+// Update extension action (popup or no popup) based on UI mode
+async function updateExtensionAction(uiMode) {
+  try {
+    if (uiMode === 'popup') {
+      // Enable popup
+      await chrome.action.setPopup({ popup: 'popup.html' });
+      console.log("Popup enabled in manifest action");
+    } else {
+      // Disable popup (will be handled by onClicked)
+      await chrome.action.setPopup({ popup: '' });
+      console.log("Popup disabled, will open in tab on click");
+    }
+  } catch (error) {
+    console.error("Error updating extension action:", error);
   }
 }

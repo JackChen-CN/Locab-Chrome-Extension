@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=800, initial-scale=1.0">
+  <title>Locab - 设置</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1><i class="fas fa-cog"></i> Locab 设置</h1>
+      <p class="subtitle">自定义您的词汇管理体验</p>
+    </header>
+
+    <div class="settings-section">
+      <h2><i class="fas fa-window-restore"></i> 界面模式</h2>
+      <p class="setting-description">选择点击扩展图标时的行为</p>
+
+      <div class="setting-options">
+        <div class="setting-option">
+          <input type="radio" id="mode-tab" name="ui-mode" value="tab">
+          <label for="mode-tab">
+            <div class="option-header">
+              <i class="fas fa-external-link-alt"></i>
+              <h3>新标签页</h3>
+            </div>
+            <p class="option-description">在新标签页中打开完整的词汇管理器界面</p>
+            <ul class="option-features">
+              <li>✅ 完整的大屏幕界面</li>
+              <li>✅ 适合大量词汇管理</li>
+              <li>✅ 更佳的阅读和操作体验</li>
+            </ul>
+          </label>
+        </div>
+
+        <div class="setting-option">
+          <input type="radio" id="mode-popup" name="ui-mode" value="popup">
+          <label for="mode-popup">
+            <div class="option-header">
+              <i class="fas fa-window-maximize"></i>
+              <h3>弹出窗口</h3>
+            </div>
+            <p class="option-description">在侧边栏弹出窗口中打开</p>
+            <ul class="option-features">
+              <li>✅ 快速访问，无需离开当前页面</li>
+              <li>✅ 适合快速查看和少量操作</li>
+              <li>✅ 不占用浏览器标签页</li>
+            </ul>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <h2><i class="fas fa-language"></i> 翻译设置</h2>
+      <p class="setting-description">配置翻译相关选项</p>
+
+      <div class="setting-item">
+        <div class="setting-label">
+          <i class="fas fa-bolt"></i>
+          <span>自动翻译</span>
+        </div>
+        <div class="setting-control">
+          <label class="toggle-switch">
+            <input type="checkbox" id="auto-translation">
+            <span class="toggle-slider"></span>
+          </label>
+          <span class="toggle-label">标记单词时自动获取翻译</span>
+        </div>
+        <p class="setting-hint">关闭此选项后，需要手动输入翻译</p>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-label">
+          <i class="fas fa-robot"></i>
+          <span>翻译API选择</span>
+        </div>
+        <div class="setting-control">
+          <select id="translation-api">
+            <option value="mymemory">MyMemory API (默认)</option>
+            <option value="libre">LibreTranslate (备用)</option>
+          </select>
+        </div>
+        <p class="setting-hint">选择翻译服务提供商</p>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <h2><i class="fas fa-database"></i> 数据管理</h2>
+      <p class="setting-description">管理您的词汇数据</p>
+
+      <div class="setting-buttons">
+        <button id="export-btn" class="btn btn-primary">
+          <i class="fas fa-download"></i> 导出词汇数据
+        </button>
+        <button id="import-btn" class="btn btn-secondary">
+          <i class="fas fa-upload"></i> 导入词汇数据
+        </button>
+        <button id="clear-btn" class="btn btn-danger">
+          <i class="fas fa-trash"></i> 清空所有词汇
+        </button>
+      </div>
+
+      <div class="data-info">
+        <p><i class="fas fa-info-circle"></i> 当前存储词汇数量: <span id="word-count">0</span> 个</p>
+        <p><i class="fas fa-history"></i> 最后更新时间: <span id="last-updated">--</span></p>
+      </div>
+    </div>
+
+    <div class="settings-actions">
+      <button id="save-btn" class="btn btn-success">
+        <i class="fas fa-save"></i> 保存设置
+      </button>
+      <button id="reset-btn" class="btn btn-secondary">
+        <i class="fas fa-undo"></i> 恢复默认
+      </button>
+      <button id="back-btn" class="btn">
+        <i class="fas fa-arrow-left"></i> 返回词汇管理
+      </button>
+    </div>
+  </div>
+
+  <script src="settings.js"></script>
+</body>
+</html>

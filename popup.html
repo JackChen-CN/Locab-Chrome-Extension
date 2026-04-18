@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=800, initial-scale=1.0">
   <title>Locab - 单词管理器</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -10,8 +10,17 @@
 <body>
   <div class="container">
     <header>
-      <h1><i class="fas fa-book-open"></i> Locab</h1>
-      <p class="subtitle">记录、复习、定位你的单词</p>
+      <div class="header-content">
+        <div class="header-left">
+          <h1><i class="fas fa-book-open"></i> Locab</h1>
+          <p class="subtitle">记录、复习、定位你的单词</p>
+        </div>
+        <div class="header-right">
+          <button id="settings-btn" class="icon-button" title="设置">
+            <i class="fas fa-cog"></i>
+          </button>
+        </div>
+      </div>
     </header>
 
     <div class="tabs">
