@@ -184,7 +184,7 @@ header h1 {
 
 .icon-button {
   position: absolute;
-  right: 8px;
+  right: 4px;
   background: none;
   border: none;
   color: var(--text-tertiary);
@@ -198,10 +198,6 @@ header h1 {
   color: var(--text-primary);
 }
 
-.action-buttons {
-  display: flex;
-  gap: 8px;
-}
 
 /* Buttons */
 .btn {

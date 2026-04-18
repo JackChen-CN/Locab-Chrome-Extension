@@ -10,7 +10,7 @@ let reviewVocabulary = [];
 let selectedWordId = null;
 
 // DOM elements
-let searchInput, clearSearchBtn, exportBtn, clearAllBtn, settingsBtn;
+let searchInput, clearSearchBtn, clearAllBtn, settingsBtn;
 let vocabularyList, wordCountEl, lastUpdatedEl;
 let prevCardBtn, nextCardBtn, knowBtn, dontKnowBtn, locateCardBtn;
 let cardWordEl, cardTranslationEl, cardSentenceEl, cardLineEl, cardWordIndexEl, cardSourceEl;
@@ -28,7 +28,6 @@ function init() {
   // Cache DOM elements
   searchInput = document.getElementById('search-input');
   clearSearchBtn = document.getElementById('clear-search');
-  exportBtn = document.getElementById('export-btn');
   clearAllBtn = document.getElementById('clear-all-btn');
   settingsBtn = document.getElementById('settings-btn');
   vocabularyList = document.getElementById('vocabulary-list');
@@ -97,7 +96,6 @@ function setupEventListeners() {
   });
 
   // Export functionality
-  exportBtn.addEventListener('click', handleExport);
 
   // Clear all functionality
   clearAllBtn.addEventListener('click', handleClearAll);
@@ -278,9 +276,7 @@ function handleSearch() {
     filteredVocabulary = [...vocabulary];
   } else {
     filteredVocabulary = vocabulary.filter(item =>
-      item.word.toLowerCase().includes(query) ||
-      item.translation.toLowerCase().includes(query) ||
-      item.sentence.toLowerCase().includes(query)
+      item.word.toLowerCase().includes(query)
     );
   }
 
