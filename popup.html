@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=800, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Locab - 单词管理器</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -30,35 +30,137 @@
 
     <!-- 单词列表标签页 -->
     <div id="list-tab" class="tab-content active">
-      <div class="controls">
-        <div class="search-box">
-          <i class="fas fa-search"></i>
-          <input type="text" id="search-input" placeholder="搜索单词或翻译...">
-          <button id="clear-search" class="icon-button" title="清空搜索">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-        <div class="action-buttons">
-          <button id="export-btn" class="btn btn-primary">
-            <i class="fas fa-download"></i> 导出
-          </button>
-          <button id="clear-all-btn" class="btn btn-danger">
-            <i class="fas fa-trash"></i> 清空
-          </button>
-        </div>
-      </div>
+      <div class="list-layout">
+        <!-- 左侧：单词列表 -->
+        <div class="list-left">
+          <div class="controls">
+            <div class="search-box">
+              <i class="fas fa-search"></i>
+              <input type="text" id="search-input" placeholder="搜索单词或翻译...">
+              <button id="clear-search" class="icon-button" title="清空搜索">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+            <div class="action-buttons">
+              <button id="export-btn" class="btn btn-primary">
+                <i class="fas fa-download"></i> 导出
+              </button>
+              <button id="clear-all-btn" class="btn btn-danger">
+                <i class="fas fa-trash"></i> 清空
+              </button>
+            </div>
+          </div>
 
-      <div class="stats">
-        <span id="word-count">0 个单词</span>
-        <span id="last-updated">最后更新: --</span>
-      </div>
+          <div class="stats">
+            <span id="word-count">0 个单词</span>
+            <span id="last-updated">最后更新: --</span>
+          </div>
 
-      <div class="vocabulary-list" id="vocabulary-list">
-        <!-- 单词项将通过JavaScript动态添加 -->
-        <div class="empty-state">
-          <i class="fas fa-book"></i>
-          <p>还没有标记任何单词</p>
-          <p class="hint">在网页上选中单词，右键点击"标记生词"开始记录</p>
+          <div class="vocabulary-list" id="vocabulary-list">
+            <!-- 单词项将通过JavaScript动态添加 -->
+            <div class="empty-state">
+              <i class="fas fa-book"></i>
+              <p>还没有标记任何单词</p>
+              <p class="hint">在网页上选中单词，右键点击"标记生词"开始记录</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右侧：单词详情和统计 -->
+        <div class="list-right">
+          <div class="detail-panel">
+            <div class="detail-header">
+              <h3><i class="fas fa-info-circle"></i> 单词详情</h3>
+              <p class="detail-subtitle">点击左侧单词查看详细信息</p>
+            </div>
+            <div class="detail-content">
+              <div class="detail-empty">
+                <i class="fas fa-info-circle"></i>
+                <h4>单词详情面板</h4>
+                <p>在左侧单词列表中点击任一单词，此处将显示：</p>
+                <ul>
+                  <li>单词原文和翻译</li>
+                  <li>单词所在的完整句子</li>
+                  <li>来源网页和时间信息</li>
+                  <li>定位和删除操作按钮</li>
+                </ul>
+                <p class="hint"><i class="fas fa-lightbulb"></i> 提示：使用右键菜单"使用Locab查询"快速标记新单词</p>
+              </div>
+              <div class="detail-loaded" style="display: none;">
+                <div class="detail-word">
+                  <h4 id="detail-word">--</h4>
+                  <span class="detail-translation" id="detail-translation">--</span>
+                </div>
+                <div class="detail-sentence">
+                  <div class="detail-label">所在句子</div>
+                  <div class="detail-sentence-text" id="detail-sentence">--</div>
+                </div>
+                <div class="detail-meta">
+                  <div class="meta-row">
+                    <span class="meta-label"><i class="fas fa-link"></i> 来源</span>
+                    <span class="meta-value" id="detail-url">--</span>
+                  </div>
+                  <div class="meta-row">
+                    <span class="meta-label"><i class="fas fa-clock"></i> 标记时间</span>
+                    <span class="meta-value" id="detail-time">--</span>
+                  </div>
+                  <div class="meta-row">
+                    <span class="meta-label"><i class="fas fa-map-marker-alt"></i> 位置</span>
+                    <span class="meta-value" id="detail-position">--</span>
+                  </div>
+                </div>
+                <div class="detail-actions">
+                  <button id="detail-locate-btn" class="btn btn-locate btn-sm">
+                    <i class="fas fa-crosshairs"></i> 定位到原文
+                  </button>
+                  <button id="detail-delete-btn" class="btn btn-danger btn-sm">
+                    <i class="fas fa-trash"></i> 删除
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="stats-panel">
+            <div class="stats-header">
+              <h3><i class="fas fa-chart-bar"></i> 学习统计</h3>
+            </div>
+            <div class="stats-content">
+              <div class="stat-item">
+                <div class="stat-label">总单词数</div>
+                <div class="stat-value" id="stat-total">0</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-label">今日新增</div>
+                <div class="stat-value" id="stat-today">0</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-label">存储使用</div>
+                <div class="stat-value" id="stat-storage">0%</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-label">待复习</div>
+                <div class="stat-value" id="stat-pending">0</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="quick-actions-panel">
+            <div class="quick-header">
+              <h3><i class="fas fa-bolt"></i> 快速操作</h3>
+            </div>
+            <div class="quick-content">
+              <button id="quick-review-btn" class="btn btn-success btn-sm">
+                <i class="fas fa-sync-alt"></i> 开始复习
+              </button>
+              <button id="quick-export-btn" class="btn btn-primary btn-sm">
+                <i class="fas fa-file-export"></i> 快速导出
+              </button>
+              <button id="quick-settings-btn" class="btn btn-secondary btn-sm">
+                <i class="fas fa-cog"></i> 设置
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

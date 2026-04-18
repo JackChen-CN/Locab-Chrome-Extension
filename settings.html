@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=800, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Locab - 设置</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -81,9 +81,57 @@
           <select id="translation-api">
             <option value="mymemory">MyMemory API (默认)</option>
             <option value="libre">LibreTranslate (备用)</option>
+            <option value="tencent">腾讯翻译君 (需要API密钥)</option>
+            <option value="youdao">有道翻译 (需要API密钥)</option>
+            <option value="baidu">百度翻译 (需要API密钥)</option>
+            <option value="custom">自定义API</option>
           </select>
         </div>
         <p class="setting-hint">选择翻译服务提供商</p>
+      </div>
+
+      <div class="setting-item" id="api-key-container" style="display: none;">
+        <div class="setting-label">
+          <i class="fas fa-key"></i>
+          <span>API密钥</span>
+        </div>
+        <div class="setting-control">
+          <input type="text" id="api-key" placeholder="输入API密钥">
+        </div>
+        <p class="setting-hint" id="api-key-hint"></p>
+      </div>
+
+      <div class="setting-item" id="custom-api-container" style="display: none;">
+        <div class="setting-label">
+          <i class="fas fa-code"></i>
+          <span>自定义API端点</span>
+        </div>
+        <div class="setting-control">
+          <input type="text" id="custom-api-url" placeholder="https://api.example.com/translate">
+        </div>
+        <p class="setting-hint">输入自定义翻译API的URL</p>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <h2><i class="fas fa-database"></i> 存储设置</h2>
+      <p class="setting-description">配置词汇数据的存储位置</p>
+
+      <div class="setting-item">
+        <div class="setting-label">
+          <i class="fas fa-save"></i>
+          <span>存储位置</span>
+        </div>
+        <div class="setting-control">
+          <select id="storage-location">
+            <option value="local">浏览器本地存储 (默认)</option>
+            <option value="sync">Chrome同步存储 (跨设备)</option>
+          </select>
+        </div>
+        <p class="setting-hint">选择词汇数据的存储位置。同步存储会在所有登录同一Google账户的设备间同步数据。</p>
+        <p class="setting-warning" style="color: var(--accent-warning); font-size: 12px; margin-top: 8px;">
+          <i class="fas fa-exclamation-triangle"></i> 更改存储位置不会自动迁移现有数据。如需迁移，请先导出数据，更改设置后再导入。
+        </p>
       </div>
     </div>
 
@@ -106,6 +154,8 @@
       <div class="data-info">
         <p><i class="fas fa-info-circle"></i> 当前存储词汇数量: <span id="word-count">0</span> 个</p>
         <p><i class="fas fa-history"></i> 最后更新时间: <span id="last-updated">--</span></p>
+        <p><i class="fas fa-database"></i> 存储使用量: <span id="storage-usage">计算中...</span></p>
+        <p><i class="fas fa-exclamation-triangle"></i> 存储提醒: <span id="storage-warning">--</span></p>
       </div>
     </div>
 

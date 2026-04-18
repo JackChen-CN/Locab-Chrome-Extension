@@ -4,14 +4,18 @@
 const DEFAULT_SETTINGS = {
   uiMode: 'tab', // 'tab' or 'popup'
   autoTranslation: true,
-  translationAPI: 'mymemory', // 'mymemory' or 'libre'
+  translationAPI: 'mymemory', // 'mymemory', 'libre', 'tencent', 'youdao', 'baidu', 'custom'
+  apiKey: '', // API密钥
+  customApiUrl: '', // 自定义API URL
+  storageLocation: 'local', // 'local' or 'sync'
   lastModified: Date.now()
 };
 
 // DOM elements
-let uiModeTab, uiModePopup, autoTranslationCheckbox, translationAPISelect;
+let uiModeTab, uiModePopup, autoTranslationCheckbox, translationAPISelect, storageLocationSelect;
+let apiKeyContainer, apiKeyInput, apiKeyHint, customApiContainer, customApiUrlInput;
 let exportBtn, importBtn, clearBtn, saveBtn, resetBtn, backBtn;
-let wordCountEl, lastUpdatedEl;
+let wordCountEl, lastUpdatedEl, storageUsageEl, storageWarningEl;
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', init);
@@ -22,6 +26,12 @@ function init() {
   uiModePopup = document.getElementById('mode-popup');
   autoTranslationCheckbox = document.getElementById('auto-translation');
   translationAPISelect = document.getElementById('translation-api');
+  storageLocationSelect = document.getElementById('storage-location');
+  apiKeyContainer = document.getElementById('api-key-container');
+  apiKeyInput = document.getElementById('api-key');
+  apiKeyHint = document.getElementById('api-key-hint');
+  customApiContainer = document.getElementById('custom-api-container');
+  customApiUrlInput = document.getElementById('custom-api-url');
   exportBtn = document.getElementById('export-btn');
   importBtn = document.getElementById('import-btn');
   clearBtn = document.getElementById('clear-btn');
@@ -30,6 +40,8 @@ function init() {
   backBtn = document.getElementById('back-btn');
   wordCountEl = document.getElementById('word-count');
   lastUpdatedEl = document.getElementById('last-updated');
+  storageUsageEl = document.getElementById('storage-usage');
+  storageWarningEl = document.getElementById('storage-warning');
 
   // Set up event listeners
   setupEventListeners();
@@ -70,6 +82,9 @@ function setupEventListeners() {
 
   // Clear button
   clearBtn.addEventListener('click', handleClear);
+
+  // Translation API change
+  translationAPISelect.addEventListener('change', updateApiFieldsVisibility);
 }
 
 // Load current settings from storage
@@ -89,20 +104,42 @@ async function loadSettings() {
 
     autoTranslationCheckbox.checked = settings.autoTranslation !== false; // Default to true
     translationAPISelect.value = settings.translationAPI || 'mymemory';
+    storageLocationSelect.value = settings.storageLocation || 'local';
+    apiKeyInput.value = settings.apiKey || '';
+    customApiUrlInput.value = settings.customApiUrl || '';
+    updateApiFieldsVisibility();
   } catch (error) {
     console.error('Error loading settings:', error);
     showMessage('加载设置失败', 'error');
   }
 }
 
+// Storage quotas in bytes
+const STORAGE_QUOTAS = {
+  local: 10 * 1024 * 1024, // 10 MB for chrome.storage.local
+  sync: 100 * 1024 // 100 KB for chrome.storage.sync
+};
+
 // Load vocabulary statistics
 async function loadVocabularyStats() {
   try {
-    const data = await chrome.storage.local.get({ vocabulary: [] });
+    // Get settings to determine storage location
+    const settingsData = await chrome.storage.local.get({ settings: DEFAULT_SETTINGS });
+    const settings = settingsData.settings;
+    const storageLocation = settings.storageLocation || 'local';
+
+    // Get storage API based on location
+    const storage = storageLocation === 'sync' ? chrome.storage.sync : chrome.storage.local;
+    const quota = STORAGE_QUOTAS[storageLocation];
+
+    // Get vocabulary data
+    const data = await storage.get({ vocabulary: [], settings: null });
     const vocabulary = data.vocabulary;
 
+    // Update word count
     wordCountEl.textContent = vocabulary.length;
 
+    // Update last updated time
     if (vocabulary.length > 0) {
       const latest = vocabulary.reduce((latest, item) =>
         item.timestamp > latest.timestamp ? item : latest
@@ -111,8 +148,43 @@ async function loadVocabularyStats() {
     } else {
       lastUpdatedEl.textContent = '--';
     }
+
+    // Calculate and display storage usage
+    if (storageUsageEl && storageWarningEl) {
+      // Estimate storage usage by converting to JSON string
+      const vocabularySize = JSON.stringify(vocabulary).length;
+      const settingsSize = JSON.stringify(data.settings || {}).length;
+      const totalSize = vocabularySize + settingsSize;
+
+      const usagePercent = Math.round((totalSize / quota) * 100);
+      const usageMB = (totalSize / (1024 * 1024)).toFixed(2);
+      const quotaMB = (quota / (1024 * 1024)).toFixed(2);
+
+      storageUsageEl.textContent = `${usagePercent}% (${usageMB} MB / ${quotaMB} MB)`;
+      storageUsageEl.style.color = usagePercent > 90 ? '#f38ba8' :
+                                  usagePercent > 70 ? '#f9e2af' :
+                                  '#a6e3a1';
+
+      // Show storage warning if needed
+      if (usagePercent > 90) {
+        storageWarningEl.textContent = '存储空间严重不足！建议立即导出数据并清理。';
+        storageWarningEl.style.color = '#f38ba8';
+      } else if (usagePercent > 70) {
+        storageWarningEl.textContent = '存储空间使用较多，建议定期导出备份。';
+        storageWarningEl.style.color = '#f9e2af';
+      } else {
+        storageWarningEl.textContent = '存储空间充足，建议定期导出备份以防数据丢失。';
+        storageWarningEl.style.color = '#a6e3a1';
+      }
+    }
   } catch (error) {
     console.error('Error loading vocabulary stats:', error);
+    if (storageUsageEl) {
+      storageUsageEl.textContent = '计算失败';
+    }
+    if (storageWarningEl) {
+      storageWarningEl.textContent = '无法获取存储信息';
+    }
   }
 }
 
@@ -123,6 +195,9 @@ async function saveSettings() {
       uiMode: uiModeTab.checked ? 'tab' : 'popup',
       autoTranslation: autoTranslationCheckbox.checked,
       translationAPI: translationAPISelect.value,
+      apiKey: apiKeyInput.value,
+      customApiUrl: customApiUrlInput.value,
+      storageLocation: storageLocationSelect.value,
       lastModified: Date.now()
     };
 
@@ -176,6 +251,10 @@ async function resetToDefaults() {
     uiModePopup.checked = DEFAULT_SETTINGS.uiMode === 'popup';
     autoTranslationCheckbox.checked = DEFAULT_SETTINGS.autoTranslation;
     translationAPISelect.value = DEFAULT_SETTINGS.translationAPI;
+    storageLocationSelect.value = DEFAULT_SETTINGS.storageLocation;
+    apiKeyInput.value = DEFAULT_SETTINGS.apiKey;
+    customApiUrlInput.value = DEFAULT_SETTINGS.customApiUrl;
+    updateApiFieldsVisibility();
 
     // Update extension action
     await updateExtensionAction(DEFAULT_SETTINGS.uiMode);
@@ -318,6 +397,43 @@ function formatTime(timestamp) {
   } else {
     // Older
     return `${date.getFullYear()}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getDate().toString().padStart(2, '0')}`;
+  }
+}
+
+// Update API fields visibility based on selected translation API
+function updateApiFieldsVisibility() {
+  const selectedApi = translationAPISelect.value;
+  const requiresApiKey = ['tencent', 'youdao', 'baidu', 'custom'].includes(selectedApi);
+  const isCustom = selectedApi === 'custom';
+
+  // Show/hide API key container
+  if (apiKeyContainer) {
+    apiKeyContainer.style.display = requiresApiKey ? 'block' : 'none';
+  }
+
+  // Show/hide custom API container
+  if (customApiContainer) {
+    customApiContainer.style.display = isCustom ? 'block' : 'none';
+  }
+
+  // Update API key hint
+  if (apiKeyHint) {
+    switch (selectedApi) {
+      case 'tencent':
+        apiKeyHint.textContent = '需要腾讯翻译君的API密钥，请访问腾讯云控制台获取。';
+        break;
+      case 'youdao':
+        apiKeyHint.textContent = '需要有道翻译的API密钥，请访问有道智云控制台获取。';
+        break;
+      case 'baidu':
+        apiKeyHint.textContent = '需要百度翻译的API密钥，请访问百度翻译开放平台获取。';
+        break;
+      case 'custom':
+        apiKeyHint.textContent = '输入自定义API密钥（如果需要）。';
+        break;
+      default:
+        apiKeyHint.textContent = '';
+    }
   }
 }
 

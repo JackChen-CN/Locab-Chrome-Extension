@@ -27,6 +27,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       highlightWord(request.record);
       sendResponse({ success: true });
       return true;
+
+    case "showTranslationConfirmation":
+      console.log("Handling translation confirmation request");
+      handleTranslationConfirmation(request, sendResponse);
+      return true;
   }
 });
 
@@ -541,6 +546,167 @@ function showToast(message, duration = 3000) {
       }
     }, 300);
   }, duration);
+}
+
+// Handle translation confirmation request
+async function handleTranslationConfirmation(request, sendResponse) {
+  try {
+    const confirmed = await showConfirmationDialog(request.word, request.translation);
+    sendResponse({ confirmed });
+  } catch (error) {
+    console.error("Error showing confirmation dialog:", error);
+    sendResponse({ confirmed: false });
+  }
+}
+
+// Show confirmation dialog
+function showConfirmationDialog(word, translation) {
+  return new Promise((resolve) => {
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'locab-confirmation-overlay';
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100000;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    `;
+
+    // Create dialog
+    const dialog = document.createElement('div');
+    dialog.style.cssText = `
+      background-color: #2a2a3e;
+      color: #cdd6f4;
+      border-radius: 12px;
+      padding: 24px;
+      width: 400px;
+      max-width: 90vw;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+      border: 1px solid #45475a;
+    `;
+
+    // Title
+    const title = document.createElement('h3');
+    title.textContent = '确认标记单词';
+    title.style.cssText = `
+      color: #89b4fa;
+      margin: 0 0 16px 0;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    `;
+    title.innerHTML = '<i class="fas fa-question-circle"></i> 确认标记单词';
+    dialog.appendChild(title);
+
+    // Word and translation
+    const wordEl = document.createElement('div');
+    wordEl.style.cssText = `
+      background-color: #3a3a52;
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      border-left: 4px solid #89b4fa;
+    `;
+    wordEl.innerHTML = `
+      <div style="font-size: 14px; color: #a6adc8; margin-bottom: 4px;">单词</div>
+      <div style="font-size: 20px; font-weight: 700; color: #89b4fa;">${word}</div>
+    `;
+    dialog.appendChild(wordEl);
+
+    const translationEl = document.createElement('div');
+    translationEl.style.cssText = `
+      background-color: #3a3a52;
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      border-left: 4px solid #a6e3a1;
+    `;
+    translationEl.innerHTML = `
+      <div style="font-size: 14px; color: #a6adc8; margin-bottom: 4px;">翻译</div>
+      <div style="font-size: 18px; color: #a6e3a1; font-weight: 600;">${translation}</div>
+    `;
+    dialog.appendChild(translationEl);
+
+    // Hint
+    const hint = document.createElement('div');
+    hint.textContent = '确定要标记这个单词吗？标记后可以在Locab中查看和复习。';
+    hint.style.cssText = `
+      color: #7f849c;
+      font-size: 13px;
+      margin-bottom: 20px;
+      line-height: 1.4;
+    `;
+    dialog.appendChild(hint);
+
+    // Buttons
+    const buttons = document.createElement('div');
+    buttons.style.cssText = `
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+    `;
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = '取消';
+    cancelBtn.style.cssText = `
+      padding: 10px 20px;
+      background-color: #3a3a52;
+      color: #cdd6f4;
+      border: 1px solid #45475a;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    `;
+    cancelBtn.onmouseover = () => cancelBtn.style.backgroundColor = '#4a4a64';
+    cancelBtn.onmouseout = () => cancelBtn.style.backgroundColor = '#3a3a52';
+    cancelBtn.onclick = () => {
+      document.body.removeChild(overlay);
+      resolve(false);
+    };
+
+    const confirmBtn = document.createElement('button');
+    confirmBtn.textContent = '标记单词';
+    confirmBtn.style.cssText = `
+      padding: 10px 20px;
+      background-color: #89b4fa;
+      color: #1e1e2f;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    `;
+    confirmBtn.onmouseover = () => confirmBtn.style.backgroundColor = '#7aa5f8';
+    confirmBtn.onmouseout = () => confirmBtn.style.backgroundColor = '#89b4fa';
+    confirmBtn.onclick = () => {
+      document.body.removeChild(overlay);
+      resolve(true);
+    };
+
+    buttons.appendChild(cancelBtn);
+    buttons.appendChild(confirmBtn);
+    dialog.appendChild(buttons);
+
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+
+    // Close on overlay click (outside dialog)
+    overlay.onclick = (e) => {
+      if (e.target === overlay) {
+        document.body.removeChild(overlay);
+        resolve(false);
+      }
+    };
+  });
 }
 
 // Initialize content script
