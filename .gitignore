@@ -6,6 +6,7 @@
 dist/
 build/
 release/
+releases/
 
 # Dependencies
 node_modules/
