@@ -1,0 +1,76 @@
+# Chrome Extension specific
+*.crx
+*.pem
+
+# Build outputs
+dist/
+build/
+release/
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Editor and IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# Temporary files
+tmp/
+temp/
+
+# System files
+*.sys
+*.dll
+*.exe
+
+# Project specific (add your own below)
+# Ignore any local test files
+test-*
+local-*
+debug-*
+
+# Claude Code session data
+.claude/
+
+# Ignore any user-specific icon files (but keep the placeholder icons)
+# icons/*.png  # Do not ignore - these are project resources
+
+# Ignore any exported vocabulary files (users can export these locally)
+vocab_export_*.txt
+
+# Ignore any backup files
+*.bak
+*.backup
+
+# Ignore any macOS resource fork files
+__MACOSX/

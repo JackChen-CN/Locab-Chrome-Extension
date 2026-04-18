@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Locab - 单词管理器</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1><i class="fas fa-book-open"></i> Locab</h1>
+      <p class="subtitle">记录、复习、定位你的单词</p>
+    </header>
+
+    <div class="tabs">
+      <button class="tab-button active" data-tab="list">单词列表</button>
+      <button class="tab-button" data-tab="review">复习模式</button>
+    </div>
+
+    <!-- 单词列表标签页 -->
+    <div id="list-tab" class="tab-content active">
+      <div class="controls">
+        <div class="search-box">
+          <i class="fas fa-search"></i>
+          <input type="text" id="search-input" placeholder="搜索单词或翻译...">
+          <button id="clear-search" class="icon-button" title="清空搜索">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="action-buttons">
+          <button id="export-btn" class="btn btn-primary">
+            <i class="fas fa-download"></i> 导出
+          </button>
+          <button id="clear-all-btn" class="btn btn-danger">
+            <i class="fas fa-trash"></i> 清空
+          </button>
+        </div>
+      </div>
+
+      <div class="stats">
+        <span id="word-count">0 个单词</span>
+        <span id="last-updated">最后更新: --</span>
+      </div>
+
+      <div class="vocabulary-list" id="vocabulary-list">
+        <!-- 单词项将通过JavaScript动态添加 -->
+        <div class="empty-state">
+          <i class="fas fa-book"></i>
+          <p>还没有标记任何单词</p>
+          <p class="hint">在网页上选中单词，右键点击"标记生词"开始记录</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 复习模式标签页 -->
+    <div id="review-tab" class="tab-content">
+      <div class="review-header">
+        <div class="progress">
+          <span id="card-counter">0/0</span>
+          <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
+        </div>
+        <div class="review-controls">
+          <button id="prev-card" class="btn btn-secondary" disabled>
+            <i class="fas fa-chevron-left"></i> 上一张
+          </button>
+          <button id="next-card" class="btn btn-secondary" disabled>
+            下一张 <i class="fas fa-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="card-container">
+        <div class="card" id="review-card">
+          <div class="card-header">
+            <span class="card-label">单词</span>
+            <span class="card-source" id="card-source">来源: --</span>
+          </div>
+          <div class="card-content">
+            <h2 id="card-word">--</h2>
+            <div class="translation" id="card-translation">--</div>
+            <div class="sentence-container">
+              <div class="sentence-label">所在句子:</div>
+              <div class="sentence" id="card-sentence">--</div>
+            </div>
+            <div class="position-info">
+              <span class="position-item">
+                <i class="fas fa-align-left"></i>
+                行: <span id="card-line">--</span>
+              </span>
+              <span class="position-item">
+                <i class="fas fa-sort-numeric-up"></i>
+                词序: <span id="card-word-index">--</span>
+              </span>
+            </div>
+          </div>
+          <div class="card-actions">
+            <button id="locate-card-btn" class="btn btn-locate" disabled>
+              <i class="fas fa-crosshairs"></i> 定位
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="review-actions">
+        <button id="know-btn" class="btn btn-success" disabled>
+          <i class="fas fa-check-circle"></i> 认识
+        </button>
+        <button id="dont-know-btn" class="btn btn-warning" disabled>
+          <i class="fas fa-times-circle"></i> 不认识
+        </button>
+      </div>
+
+      <div class="review-hint">
+        <i class="fas fa-info-circle"></i>
+        <p>点击"认识"或"不认识"后会自动切换到下一张卡片</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 单词项模板 -->
+  <template id="vocab-item-template">
+    <div class="vocab-item">
+      <div class="vocab-header">
+        <h3 class="vocab-word"></h3>
+        <span class="vocab-translation"></span>
+        <div class="vocab-actions">
+          <button class="btn btn-sm btn-locate locate-btn" title="定位到原文">
+            <i class="fas fa-crosshairs"></i>
+          </button>
+          <button class="btn btn-sm btn-danger delete-btn" title="删除">
+            <i class="fas fa-trash"></i>
+          </button>
+        </div>
+      </div>
+      <div class="vocab-sentence"></div>
+      <div class="vocab-meta">
+        <span class="meta-item">
+          <i class="fas fa-link"></i>
+          <span class="meta-url"></span>
+        </span>
+        <span class="meta-item">
+          <i class="fas fa-clock"></i>
+          <span class="meta-time"></span>
+        </span>
+        <span class="meta-item">
+          <i class="fas fa-map-marker-alt"></i>
+          位置: 行 <span class="meta-line"></span>, 词 <span class="meta-word-index"></span>
+        </span>
+      </div>
+    </div>
+  </template>
+
+  <script src="popup.js"></script>
+</body>
+</html>
