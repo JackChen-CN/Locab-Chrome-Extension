@@ -286,12 +286,19 @@ async function fetchTencentTranslation(word, apiUrl, secretId, secretKey) {
   }
 
   try {
+    // 从URL解析主机名
+    const urlObj = new URL(apiUrl);
+    const host = urlObj.host;
+    const path = urlObj.pathname === '/' ? '' : urlObj.pathname;
+
     // 请求参数
-    const region = 'ap-guangzhou';
+    const region = 'ap-beijing'; // 根据示例改为北京区域
     const action = 'TextTranslate';
     const version = '2018-03-21';
     const timestamp = Math.floor(Date.now() / 1000);
     const date = new Date(timestamp * 1000).toISOString().split('T')[0];
+    // Token是可选的，用于临时凭证，目前暂不实现
+    const token = '';
 
     // 请求体
     const payload = {
@@ -301,24 +308,24 @@ async function fetchTencentTranslation(word, apiUrl, secretId, secretKey) {
       ProjectId: 0
     };
 
-    // 简化实现：使用POST请求，包含基本签名信息
-    // 注意：完整的TC3-HMAC-SHA256签名较复杂，这里提供简化版本
-    // 如果此实现不工作，用户可能需要参考腾讯云官方SDK
+    console.log('腾讯翻译API调试信息:', { host, path, timestamp, date, secretId: secretId.substring(0, 8) + '...' });
 
     // 生成签名所需组件
     const service = 'tmt';
     const algorithm = 'TC3-HMAC-SHA256';
 
-    // 1. 规范请求 (简化版)
+    // 1. 规范请求
     const httpRequestMethod = 'POST';
-    const canonicalUri = '/';
+    const canonicalUri = path || '/';
     const canonicalQueryString = '';
-    const canonicalHeaders = 'content-type:application/json\nhost:tmt.tencentcloudapi.com\n';
+    const canonicalHeaders = `content-type:application/json\nhost:${host}\n`;
     const signedHeaders = 'content-type;host';
     const hashedRequestPayload = await sha256(JSON.stringify(payload));
 
     const canonicalRequest = `${httpRequestMethod}\n${canonicalUri}\n${canonicalQueryString}\n${canonicalHeaders}\n${signedHeaders}\n${hashedRequestPayload}`;
     const hashedCanonicalRequest = await sha256(canonicalRequest);
+
+    console.log('规范请求哈希:', hashedCanonicalRequest.substring(0, 32) + '...');
 
     // 2. 待签字符串
     const credentialScope = `${date}/${service}/tc3_request`;
@@ -327,21 +334,34 @@ async function fetchTencentTranslation(word, apiUrl, secretId, secretKey) {
     // 3. 计算签名
     const signature = await calculateTc3Signature(secretKey, date, service, stringToSign);
 
+    console.log('签名结果:', signature.substring(0, 32) + '...');
+
     // 4. 生成Authorization头
     const authorization = `${algorithm} Credential=${secretId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
 
     // 发送请求
+    const headers = {
+      'Authorization': authorization,
+      'Content-Type': 'application/json',
+      'Host': host,
+      'X-TC-Action': action,
+      'X-TC-Version': version,
+      'X-TC-Timestamp': timestamp.toString(),
+      'X-TC-Region': region,
+      'X-TC-Language': 'zh-CN'
+    };
+
+    // 如果提供了Token，添加到头部
+    if (token && token.trim() !== '') {
+      headers['X-TC-Token'] = token;
+    }
+
+    console.log('请求头:', JSON.stringify(headers, null, 2));
+    console.log('请求体:', JSON.stringify(payload, null, 2));
+
     const response = await fetch(apiUrl, {
       method: 'POST',
-      headers: {
-        'Authorization': authorization,
-        'Content-Type': 'application/json',
-        'Host': 'tmt.tencentcloudapi.com',
-        'X-TC-Action': action,
-        'X-TC-Version': version,
-        'X-TC-Timestamp': timestamp.toString(),
-        'X-TC-Region': region
-      },
+      headers: headers,
       body: JSON.stringify(payload)
     });
 
@@ -379,11 +399,15 @@ async function fetchTencentTranslation(word, apiUrl, secretId, secretKey) {
   async function calculateTc3Signature(secretKey, date, service, stringToSign) {
     // 计算签名密钥
     const kDate = await hmacSha256(`TC3${secretKey}`, date);
+    console.log('kDate (hex):', kDate.substring(0, 32) + '...');
     const kService = await hmacSha256(kDate, service);
+    console.log('kService (hex):', kService.substring(0, 32) + '...');
     const kSigning = await hmacSha256(kService, 'tc3_request');
+    console.log('kSigning (hex):', kSigning.substring(0, 32) + '...');
 
     // 计算签名
     const signature = await hmacSha256(kSigning, stringToSign);
+    console.log('签名 (hex):', signature);
     return signature;
   }
 
@@ -409,38 +433,6 @@ async function fetchTencentTranslation(word, apiUrl, secretId, secretKey) {
 }
 
 // Youdao translation (placeholder - needs implementation)
-async function fetchYoudaoTranslation(word, apiKey) {
-  if (!apiKey) throw new Error('有道翻译API需要API密钥');
-  // TODO: Implement Youdao API
-  throw new Error('有道翻译API尚未实现');
-}
-
-// Baidu translation (placeholder - needs implementation)
-async function fetchBaiduTranslation(word, apiKey) {
-  if (!apiKey) throw new Error('百度翻译API需要API密钥');
-  // TODO: Implement Baidu API
-  throw new Error('百度翻译API尚未实现');
-}
-
-// Custom translation API
-async function fetchCustomTranslation(word, customUrl, apiKey) {
-  if (!customUrl) throw new Error('自定义API URL未设置');
-  // Simple POST request with JSON body
-  const response = await fetch(customUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      text: word,
-      source: 'en',
-      target: 'zh',
-      apiKey: apiKey || undefined
-    })
-  });
-  if (!response.ok) throw new Error(`Custom API response: ${response.status}`);
-  const data = await response.json();
-  // Try to extract translation from common response formats
-  return data.translation || data.text || data.result || data.data || '';
-}
 
 // Helper function for fetch with timeout
 async function fetchWithTimeout(url, options = {}, timeout = 10000) {
