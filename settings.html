@@ -80,11 +80,7 @@
         <div class="setting-control">
           <select id="translation-api">
             <option value="mymemory">MyMemory API (默认)</option>
-            <option value="libre">LibreTranslate (备用)</option>
-            <option value="tencent">腾讯翻译君 (需要API密钥)</option>
-            <option value="youdao">有道翻译 (需要API密钥)</option>
-            <option value="baidu">百度翻译 (需要API密钥)</option>
-            <option value="custom">自定义API</option>
+            <option value="tencent">腾讯翻译君 (需要配置)</option>
           </select>
         </div>
         <p class="setting-hint">选择翻译服务提供商</p>
@@ -99,6 +95,31 @@
           <input type="text" id="api-key" placeholder="输入API密钥">
         </div>
         <p class="setting-hint" id="api-key-hint"></p>
+      </div>
+
+      <div class="setting-item" id="tencent-config-container" style="display: none;">
+        <div class="setting-label">
+          <i class="fas fa-server"></i>
+          <span>腾讯翻译配置</span>
+        </div>
+        <div class="setting-control">
+          <div class="config-group">
+            <label for="tencent-api-url">接口API（可选）</label>
+            <input type="text" id="tencent-api-url" placeholder="https://tmt.tencentcloudapi.com/">
+            <p class="field-hint">腾讯翻译API端点，默认已填</p>
+          </div>
+          <div class="config-group">
+            <label for="tencent-secret-id">SecretId（可选）</label>
+            <input type="text" id="tencent-secret-id" placeholder="SecretId">
+            <p class="field-hint">腾讯云API访问密钥ID</p>
+          </div>
+          <div class="config-group">
+            <label for="tencent-secret-key">SecretKey（必需）</label>
+            <input type="text" id="tencent-secret-key" placeholder="SecretKey">
+            <p class="field-hint">腾讯云API访问密钥，必需</p>
+          </div>
+        </div>
+        <p class="setting-hint">请从腾讯云控制台获取API密钥</p>
       </div>
 
       <div class="setting-item" id="custom-api-container" style="display: none;">

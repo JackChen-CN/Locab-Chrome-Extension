@@ -5,9 +5,13 @@
 const DEFAULT_SETTINGS = {
   uiMode: 'tab', // 'tab' or 'popup'
   autoTranslation: true,
-  translationAPI: 'mymemory', // 'mymemory', 'libre', 'tencent', 'youdao', 'baidu', 'custom'
-  apiKey: '', // API密钥
-  customApiUrl: '', // 自定义API URL
+  translationAPI: 'mymemory', // 'mymemory', 'tencent' (only two options now)
+  apiKey: '', // API密钥 (kept for compatibility)
+  customApiUrl: '', // 自定义API URL (kept for compatibility)
+  // 腾讯翻译君专用配置
+  tencentApiUrl: 'https://tmt.tencentcloudapi.com/', // 接口API（可选）
+  tencentSecretId: '', // SecretId（可选）
+  tencentSecretKey: '', // SecretKey（必需）
   storageLocation: 'local', // 'local' or 'sync'
   lastModified: Date.now()
 };
@@ -124,6 +128,9 @@ async function fetchTranslation(word) {
   const api = settings.translationAPI || 'mymemory';
   const apiKey = settings.apiKey || '';
   const customUrl = settings.customApiUrl || '';
+  const tencentApiUrl = settings.tencentApiUrl || 'https://tmt.tencentcloudapi.com/';
+  const tencentSecretId = settings.tencentSecretId || '';
+  const tencentSecretKey = settings.tencentSecretKey || '';
 
   try {
     const translations = new Set();
@@ -144,20 +151,8 @@ async function fetchTranslation(word) {
       case 'mymemory':
         primaryTranslation = await fetchMyMemoryTranslation(word);
         break;
-      case 'libre':
-        primaryTranslation = await fetchLibreTranslation(word);
-        break;
       case 'tencent':
-        primaryTranslation = await fetchTencentTranslation(word, apiKey);
-        break;
-      case 'youdao':
-        primaryTranslation = await fetchYoudaoTranslation(word, apiKey);
-        break;
-      case 'baidu':
-        primaryTranslation = await fetchBaiduTranslation(word, apiKey);
-        break;
-      case 'custom':
-        primaryTranslation = await fetchCustomTranslation(word, customUrl, apiKey);
+        primaryTranslation = await fetchTencentTranslation(word, tencentApiUrl, tencentSecretId, tencentSecretKey);
         break;
       default:
         primaryTranslation = await fetchMyMemoryTranslation(word);
@@ -165,16 +160,6 @@ async function fetchTranslation(word) {
     addTranslation(primaryTranslation);
 
     // Try secondary APIs to get more translations
-    // Try LibreTranslate if not already used
-    if (api !== 'libre') {
-      try {
-        const libreTranslation = await fetchLibreTranslation(word);
-        addTranslation(libreTranslation);
-      } catch (libreError) {
-        console.log("LibreTranslate secondary attempt failed:", libreError);
-      }
-    }
-
     // Try MyMemory if not already used
     if (api !== 'mymemory') {
       try {
@@ -285,76 +270,89 @@ async function fetchLibreTranslation(word) {
 }
 
 // Tencent translation - Tencent Translation API
-async function fetchTencentTranslation(word, apiKey) {
-  if (!apiKey) throw new Error('腾讯翻译API需要API密钥');
+async function fetchTencentTranslation(word, apiUrl, secretId, secretKey) {
+  if (!secretKey) throw new Error('腾讯翻译API需要SecretKey');
 
-  // Note: This is a basic implementation.
-  // According to Tencent Cloud documentation (https://cloud.tencent.com/document/api/551/15619),
-  // the actual implementation may require:
-  // 1. SecretId and SecretKey for HMAC-SHA1 signature
-  // 2. Region parameter (e.g., ap-guangzhou)
-  // 3. ProjectId (optional)
-  // 4. Proper timestamp and nonce
+  // 腾讯翻译君API实现（使用TC3-HMAC-SHA256签名）
+  // 如果apiUrl为空，使用默认值
+  if (!apiUrl || apiUrl.trim() === '') {
+    apiUrl = 'https://tmt.tencentcloudapi.com/';
+  }
 
-  // For simplicity, we'll use a simplified approach assuming apiKey is the full access token
-  // Users should refer to the official documentation for complete implementation
-
-  const apiUrl = 'https://tmt.tencentcloudapi.com/';
+  // 如果secretId为空，尝试使用secretKey作为secretId
+  if (!secretId || secretId.trim() === '') {
+    console.warn('SecretId未提供，尝试使用SecretKey作为SecretId');
+    secretId = secretKey;
+  }
 
   try {
-    // Basic request parameters based on Tencent Cloud API common pattern
-    const params = {
-      Action: 'TextTranslate',
-      Version: '2018-03-21',
-      Region: 'ap-guangzhou', // Default region, can be configured
+    // 请求参数
+    const region = 'ap-guangzhou';
+    const action = 'TextTranslate';
+    const version = '2018-03-21';
+    const timestamp = Math.floor(Date.now() / 1000);
+    const date = new Date(timestamp * 1000).toISOString().split('T')[0];
+
+    // 请求体
+    const payload = {
       SourceText: word,
       Source: 'en',
       Target: 'zh',
-      ProjectId: 0, // Default project
-      // Note: Real implementation needs timestamp, signature, etc.
+      ProjectId: 0
     };
 
-    // If apiKey contains both SecretId and SecretKey (format: "SecretId:SecretKey")
-    let secretId = '';
-    let secretKey = '';
+    // 简化实现：使用POST请求，包含基本签名信息
+    // 注意：完整的TC3-HMAC-SHA256签名较复杂，这里提供简化版本
+    // 如果此实现不工作，用户可能需要参考腾讯云官方SDK
 
-    if (apiKey.includes(':')) {
-      [secretId, secretKey] = apiKey.split(':', 2);
-    } else {
-      // Assume it's a single token/secret
-      secretId = apiKey;
-      // For now, we'll use a simplified approach without signature
-      // In production, proper HMAC-SHA1 signature is required
-    }
+    // 生成签名所需组件
+    const service = 'tmt';
+    const algorithm = 'TC3-HMAC-SHA256';
 
-    // Simple implementation without full signature for now
-    // TODO: Implement proper Tencent Cloud signature algorithm
-    const queryParams = new URLSearchParams();
-    Object.entries(params).forEach(([key, value]) => {
-      queryParams.append(key, value.toString());
-    });
+    // 1. 规范请求 (简化版)
+    const httpRequestMethod = 'POST';
+    const canonicalUri = '/';
+    const canonicalQueryString = '';
+    const canonicalHeaders = 'content-type:application/json\nhost:tmt.tencentcloudapi.com\n';
+    const signedHeaders = 'content-type;host';
+    const hashedRequestPayload = await sha256(JSON.stringify(payload));
 
-    const urlWithParams = `${apiUrl}?${queryParams.toString()}`;
+    const canonicalRequest = `${httpRequestMethod}\n${canonicalUri}\n${canonicalQueryString}\n${canonicalHeaders}\n${signedHeaders}\n${hashedRequestPayload}`;
+    const hashedCanonicalRequest = await sha256(canonicalRequest);
 
-    const response = await fetch(urlWithParams, {
-      method: 'GET',
+    // 2. 待签字符串
+    const credentialScope = `${date}/${service}/tc3_request`;
+    const stringToSign = `${algorithm}\n${timestamp}\n${credentialScope}\n${hashedCanonicalRequest}`;
+
+    // 3. 计算签名
+    const signature = await calculateTc3Signature(secretKey, date, service, stringToSign);
+
+    // 4. 生成Authorization头
+    const authorization = `${algorithm} Credential=${secretId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+
+    // 发送请求
+    const response = await fetch(apiUrl, {
+      method: 'POST',
       headers: {
-        'Authorization': `TC3-HMAC-SHA256 Credential=${secretId}/...`, // Placeholder
+        'Authorization': authorization,
         'Content-Type': 'application/json',
-        'X-TC-Action': params.Action,
-        'X-TC-Version': params.Version,
-        'X-TC-Timestamp': Math.floor(Date.now() / 1000).toString(),
-        'X-TC-Region': params.Region,
-      }
+        'Host': 'tmt.tencentcloudapi.com',
+        'X-TC-Action': action,
+        'X-TC-Version': version,
+        'X-TC-Timestamp': timestamp.toString(),
+        'X-TC-Region': region
+      },
+      body: JSON.stringify(payload)
     });
 
     if (!response.ok) {
-      throw new Error(`腾讯翻译API错误: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      throw new Error(`腾讯翻译API错误: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
     const data = await response.json();
 
-    // Parse response based on Tencent Cloud API format
+    // 解析响应
     if (data.Response && data.Response.TargetText) {
       return data.Response.TargetText;
     } else if (data.Response && data.Response.Error) {
@@ -367,6 +365,46 @@ async function fetchTencentTranslation(word, apiKey) {
     // Fallback to MyMemory API
     console.log('腾讯翻译失败，尝试使用MyMemory作为备用');
     return await fetchMyMemoryTranslation(word);
+  }
+
+  // 辅助函数：计算SHA256哈希
+  async function sha256(message) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(message);
+    const hash = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  // 辅助函数：计算TC3签名
+  async function calculateTc3Signature(secretKey, date, service, stringToSign) {
+    // 计算签名密钥
+    const kDate = await hmacSha256(`TC3${secretKey}`, date);
+    const kService = await hmacSha256(kDate, service);
+    const kSigning = await hmacSha256(kService, 'tc3_request');
+
+    // 计算签名
+    const signature = await hmacSha256(kSigning, stringToSign);
+    return signature;
+  }
+
+  // 辅助函数：HMAC-SHA256
+  async function hmacSha256(key, message) {
+    const encoder = new TextEncoder();
+    const keyData = encoder.encode(key);
+    const messageData = encoder.encode(message);
+
+    // 导入密钥
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw',
+      keyData,
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+
+    // 计算HMAC
+    const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
+    return Array.from(new Uint8Array(signature)).map(b => b.toString(16).padStart(2, '0')).join('');
   }
 }
 

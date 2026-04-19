@@ -4,9 +4,13 @@
 const DEFAULT_SETTINGS = {
   uiMode: 'tab', // 'tab' or 'popup'
   autoTranslation: true,
-  translationAPI: 'mymemory', // 'mymemory', 'libre', 'tencent', 'youdao', 'baidu', 'custom'
-  apiKey: '', // API密钥
-  customApiUrl: '', // 自定义API URL
+  translationAPI: 'mymemory', // 'mymemory', 'tencent' (only two options now)
+  apiKey: '', // API密钥 (kept for compatibility)
+  customApiUrl: '', // 自定义API URL (kept for compatibility)
+  // 腾讯翻译君专用配置
+  tencentApiUrl: 'https://tmt.tencentcloudapi.com/', // 接口API（可选）
+  tencentSecretId: '', // SecretId（可选）
+  tencentSecretKey: '', // SecretKey（必需）
   storageLocation: 'local', // 'local' or 'sync'
   lastModified: Date.now()
 };
@@ -14,6 +18,7 @@ const DEFAULT_SETTINGS = {
 // DOM elements
 let uiModeTab, uiModePopup, autoTranslationCheckbox, translationAPISelect, storageLocationSelect;
 let apiKeyContainer, apiKeyInput, apiKeyHint, customApiContainer, customApiUrlInput;
+let tencentConfigContainer, tencentApiUrlInput, tencentSecretIdInput, tencentSecretKeyInput;
 let exportBtn, importBtn, clearBtn, saveBtn, resetBtn, backBtn;
 let wordCountEl, lastUpdatedEl, storageUsageEl, storageWarningEl;
 
@@ -32,6 +37,10 @@ function init() {
   apiKeyHint = document.getElementById('api-key-hint');
   customApiContainer = document.getElementById('custom-api-container');
   customApiUrlInput = document.getElementById('custom-api-url');
+  tencentConfigContainer = document.getElementById('tencent-config-container');
+  tencentApiUrlInput = document.getElementById('tencent-api-url');
+  tencentSecretIdInput = document.getElementById('tencent-secret-id');
+  tencentSecretKeyInput = document.getElementById('tencent-secret-key');
   exportBtn = document.getElementById('export-btn');
   importBtn = document.getElementById('import-btn');
   clearBtn = document.getElementById('clear-btn');
@@ -107,6 +116,9 @@ async function loadSettings() {
     storageLocationSelect.value = settings.storageLocation || 'local';
     apiKeyInput.value = settings.apiKey || '';
     customApiUrlInput.value = settings.customApiUrl || '';
+    tencentApiUrlInput.value = settings.tencentApiUrl || 'https://tmt.tencentcloudapi.com/';
+    tencentSecretIdInput.value = settings.tencentSecretId || '';
+    tencentSecretKeyInput.value = settings.tencentSecretKey || '';
     updateApiFieldsVisibility();
   } catch (error) {
     console.error('Error loading settings:', error);
@@ -197,6 +209,9 @@ async function saveSettings() {
       translationAPI: translationAPISelect.value,
       apiKey: apiKeyInput.value,
       customApiUrl: customApiUrlInput.value,
+      tencentApiUrl: tencentApiUrlInput.value,
+      tencentSecretId: tencentSecretIdInput.value,
+      tencentSecretKey: tencentSecretKeyInput.value,
       storageLocation: storageLocationSelect.value,
       lastModified: Date.now()
     };
@@ -254,6 +269,9 @@ async function resetToDefaults() {
     storageLocationSelect.value = DEFAULT_SETTINGS.storageLocation;
     apiKeyInput.value = DEFAULT_SETTINGS.apiKey;
     customApiUrlInput.value = DEFAULT_SETTINGS.customApiUrl;
+    tencentApiUrlInput.value = DEFAULT_SETTINGS.tencentApiUrl;
+    tencentSecretIdInput.value = DEFAULT_SETTINGS.tencentSecretId;
+    tencentSecretKeyInput.value = DEFAULT_SETTINGS.tencentSecretKey;
     updateApiFieldsVisibility();
 
     // Update extension action
@@ -403,12 +421,12 @@ function formatTime(timestamp) {
 // Update API fields visibility based on selected translation API
 function updateApiFieldsVisibility() {
   const selectedApi = translationAPISelect.value;
-  const requiresApiKey = ['tencent', 'youdao', 'baidu', 'custom'].includes(selectedApi);
+  const isTencent = selectedApi === 'tencent';
   const isCustom = selectedApi === 'custom';
 
-  // Show/hide API key container
+  // Show/hide API key container (for compatibility, not used for tencent)
   if (apiKeyContainer) {
-    apiKeyContainer.style.display = requiresApiKey ? 'block' : 'none';
+    apiKeyContainer.style.display = isCustom ? 'block' : 'none';
   }
 
   // Show/hide custom API container
@@ -416,17 +434,16 @@ function updateApiFieldsVisibility() {
     customApiContainer.style.display = isCustom ? 'block' : 'none';
   }
 
+  // Show/hide Tencent config container
+  if (tencentConfigContainer) {
+    tencentConfigContainer.style.display = isTencent ? 'block' : 'none';
+  }
+
   // Update API key hint
   if (apiKeyHint) {
     switch (selectedApi) {
       case 'tencent':
         apiKeyHint.textContent = '需要腾讯翻译君的API密钥，请访问腾讯云控制台获取。';
-        break;
-      case 'youdao':
-        apiKeyHint.textContent = '需要有道翻译的API密钥，请访问有道智云控制台获取。';
-        break;
-      case 'baidu':
-        apiKeyHint.textContent = '需要百度翻译的API密钥，请访问百度翻译开放平台获取。';
         break;
       case 'custom':
         apiKeyHint.textContent = '输入自定义API密钥（如果需要）。';
