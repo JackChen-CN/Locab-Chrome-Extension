@@ -15,12 +15,13 @@ Locab 是一款功能强大的 Chrome 浏览器扩展插件，专为语言学习
 - 📚 **复习系统**：卡片式复习模式，标记认识/不认识
 - 💾 **本地存储**：所有数据保存在本地，隐私安全
 - 📤 **数据导出**：支持导出为 JSONL 格式，便于备份和分析
+- 🌐 **多API支持**：支持MyMemory、腾讯、百度、有道等多种翻译API，可配置切换
 
 ## 🎯 功能特性
 
 ### 1. 智能标记生词
 - **右键菜单标记**：在任意网页上选中单个单词，右键点击"标记生词"
-- **自动翻译**：调用 MyMemory API 获取中文翻译，失败时可手动输入
+- **自动翻译**：支持MyMemory、腾讯、百度、有道等多种翻译API，可配置主API和备用策略，失败时可手动输入
 - **上下文捕获**：自动获取单词所在的完整句子
 - **位置计算**：精确计算行号、词序号、XPath 和字符偏移量
 
@@ -59,7 +60,7 @@ Locab 是一款功能强大的 Chrome 浏览器扩展插件，专为语言学习
 - **平台**：Chrome Extension (Manifest V3)
 - **语言**：JavaScript (ES6+)
 - **存储**：chrome.storage.local
-- **API**：MyMemory Translation API
+- **翻译API**：MyMemory、腾讯翻译君、百度翻译、有道词典（支持多API，可配置）
 - **权限**：contextMenus, activeTab, storage, scripting, tabs
 - **样式**：现代CSS，支持暗色主题
 - **UI**：响应式设计，500×550px 弹窗
@@ -183,7 +184,7 @@ Locab 是一款功能强大的 Chrome 浏览器扩展插件，专为语言学习
 #### 🔍 右键菜单标记
 - **支持**：任意网页（新闻、博客、文档、论坛等）
 - **限制**：只能选择**单个单词**（不含空格）
-- **自动翻译**：英→中，使用MyMemory API
+- **自动翻译**：英→中，支持多种翻译API（MyMemory、腾讯、百度、有道等），可配置
 - **上下文捕获**：智能识别句子边界（句号、问号、感叹号、换行）
 - **位置记录**：精确到行号和词序号
 
@@ -291,10 +292,15 @@ algorithm
 3. 需要刷新页面使内容脚本生效
 
 #### Q: 翻译获取失败怎么办？
-**A**: 扩展会显示`[翻译获取失败，请手动输入]`，您可以：
-1. 稍后重新标记该单词
-2. 手动编辑翻译（功能待开发）
-3. 检查网络连接
+**A**: 扩展支持多种翻译API和智能备用策略：
+1. **主API优先**：首先尝试配置的翻译API
+2. **备用机制**：仅当主API调用失败时才尝试备用API
+3. **最终回退**：所有API均失败时显示`[翻译获取失败，请手动输入]`
+您可以：
+1. 检查配置的API密钥是否正确（如使用腾讯/百度API）
+2. 稍后重新标记该单词
+3. 在设置中切换其他翻译API
+4. 检查网络连接
 
 #### Q: 定位功能有时不准确？
 **A**: 可能原因：
@@ -437,13 +443,43 @@ Service Worker 脚本，处理：
 }
 ```
 
-## 🌐 API 使用
+## 🌐 翻译API支持
 
-### MyMemory Translation API
-- **端点**：`https://api.mymemory.translated.net/get`
-- **参数**：`q={word}&langpair=en|zh`
-- **超时**：5秒，超时后使用手动输入
-- **备用方案**：API失败时提示用户手动输入翻译
+Locab支持多种翻译API，可根据需要配置和切换：
+
+### 支持的翻译API
+1. **MyMemory Translation API** (默认)
+   - 免费、无需API密钥
+   - 端点：`https://api.mymemory.translated.net/get`
+   - 参数：`q={word}&langpair=en|zh`
+
+2. **腾讯翻译君 API**
+   - 需要腾讯云API密钥（支持API Key简单认证或SecretId/SecretKey高级认证）
+   - 端点：`https://tmt.tencentcloudapi.com/` (可自定义)
+   - 支持TC3-HMAC-SHA256签名算法
+
+3. **百度翻译通用 API**
+   - 需要百度翻译开放平台的AppId和SecretKey
+   - 端点：`https://fanyi-api.baidu.com/api/trans/vip/translate` (可自定义)
+   - 支持MD5签名认证
+
+4. **有道词典 API**
+   - 免费、无需配置
+   - 端点：`https://dict.youdao.com/suggest`
+   - 返回词典解释而非直接翻译
+
+### API调用策略
+- **主API优先**：使用配置的翻译API作为首选
+- **智能备用**：仅当主API调用失败（网络错误、认证失败等）时才尝试备用API
+- **空结果处理**：如果主API返回空结果（如无翻译），直接返回空结果而不尝试备用API
+- **最终回退**：所有API均失败时返回`[翻译获取失败，请手动输入: {word}]`
+
+### 配置方法
+在扩展设置页面（设置 → 翻译API）可选择API类型并配置相应密钥：
+- MyMemory：无需配置
+- 腾讯翻译君：需填写API Key或SecretId/SecretKey
+- 百度翻译：需填写AppId和SecretKey
+- 有道词典：无需配置
 
 ## 🎨 用户体验
 
@@ -502,7 +538,7 @@ Service Worker 脚本，处理：
 
 ### 使用的技术
 - [Chrome Extensions API](https://developer.chrome.com/docs/extensions/)
-- [MyMemory Translation API](https://mymemory.translated.net/)
+- 多种翻译API（[MyMemory](https://mymemory.translated.net/)、[腾讯翻译君](https://cloud.tencent.com/product/tmt)、[百度翻译](https://fanyi-api.baidu.com/)、[有道词典](https://dict.youdao.com/)）
 - [Font Awesome](https://fontawesome.com/) 图标
 - [Google Fonts](https://fonts.google.com/)
 

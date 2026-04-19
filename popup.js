@@ -23,6 +23,20 @@ let statTotalEl, statTodayEl, statStorageEl, statPendingEl;
 let quickReviewBtn, quickExportBtn, quickSettingsBtn;
 let toggleGroupingBtn;
 
+// Helper function to format translation text with line breaks
+function formatTranslation(translationText) {
+  if (!translationText) return '';
+  // Escape HTML special characters
+  const escaped = translationText
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+  // Replace Chinese semicolon with line break
+  return escaped.replace(/；/g, '<br>');
+}
+
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', init);
 
@@ -340,7 +354,7 @@ function renderVocabularyItem(item, isGrouped = false) {
   wordEl.textContent = item.word;
   // Use context analysis for each individual item
   const itemTranslation = selectTranslationByContext(item.word, item.sentence, item.translations || []);
-  translationEl.textContent = itemTranslation;
+  translationEl.innerHTML = formatTranslation(itemTranslation);
   sentenceEl.textContent = truncateText(item.sentence, 100);
   urlEl.textContent = new URL(item.url).hostname;
   timeEl.textContent = formatTime(item.timestamp);
@@ -399,7 +413,7 @@ function renderGroupedVocabulary() {
     // Use context analysis to select the most appropriate translation for the group
     const firstItem = group.items[0];
     const groupTranslation = selectTranslationByContext(group.word, firstItem.sentence, group.translations);
-    groupTranslationEl.textContent = groupTranslation;
+    groupTranslationEl.innerHTML = formatTranslation(groupTranslation);
     groupCountEl.textContent = `(${group.items.length}个位置)`;
 
     // Render each item in the group
@@ -578,7 +592,7 @@ function showCurrentCard() {
   const card = reviewVocabulary[currentCardIndex];
 
   cardWordEl.textContent = card.word;
-  cardTranslationEl.textContent = card.translation;
+  cardTranslationEl.innerHTML = formatTranslation(card.translation);
   cardSentenceEl.textContent = card.sentence;
   cardLineEl.textContent = card.line;
   cardWordIndexEl.textContent = card.wordIndex;
@@ -798,47 +812,6 @@ const STORAGE_QUOTAS = {
 };
 
 // Update storage usage display
-async function updateStorageUsage() {
-  if (!statStorageEl) return;
-
-  try {
-    // Get settings to determine storage location
-    const settingsData = await chrome.storage.local.get({ settings: { storageLocation: 'local' } });
-    const storageLocation = settingsData.settings.storageLocation || 'local';
-    const quota = STORAGE_QUOTAS[storageLocation];
-
-    // Get storage API based on location
-    const storage = storageLocation === 'sync' ? chrome.storage.sync : chrome.storage.local;
-
-    // Get vocabulary data
-    const data = await storage.get({ vocabulary: [], settings: null });
-    const vocabulary = data.vocabulary;
-
-    // Estimate storage usage
-    const vocabularySize = JSON.stringify(vocabulary).length;
-    const settingsSize = JSON.stringify(data.settings || {}).length;
-    const totalSize = vocabularySize + settingsSize;
-
-    const usagePercent = Math.round((totalSize / quota) * 100);
-
-    // Update display
-    statStorageEl.textContent = `${usagePercent}%`;
-
-    // Color coding based on usage level
-    if (usagePercent > 90) {
-      statStorageEl.style.color = '#f38ba8'; // Danger
-    } else if (usagePercent > 70) {
-      statStorageEl.style.color = '#f9e2af'; // Warning
-    } else {
-      statStorageEl.style.color = '#a6e3a1'; // Success
-    }
-
-  } catch (error) {
-    console.error('Error calculating storage usage:', error);
-    statStorageEl.textContent = '错误';
-    statStorageEl.style.color = '#7f849c';
-  }
-}
 
 // Select word item and update detail panel
 function selectWordItem(item) {
@@ -860,7 +833,7 @@ function selectWordItem(item) {
   }
 
   if (detailWordEl) detailWordEl.textContent = item.word;
-  if (detailTranslationEl) detailTranslationEl.textContent = item.translation;
+  if (detailTranslationEl) detailTranslationEl.innerHTML = formatTranslation(item.translation);
   if (detailSentenceEl) detailSentenceEl.textContent = item.sentence;
   if (detailUrlEl) detailUrlEl.textContent = new URL(item.url).hostname;
   if (detailTimeEl) detailTimeEl.textContent = formatTime(item.timestamp);

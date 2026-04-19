@@ -1,18 +1,27 @@
 // Service worker for Locab Chrome Extension
 // Handles context menu, API calls, and storage operations
 
+// Import CryptoJS for MD5
+importScripts('lib/crypto-js.min.js');
+
 // Default settings
 const DEFAULT_SETTINGS = {
   uiMode: 'tab', // 'tab' or 'popup'
   autoTranslation: true,
-  translationAPI: 'mymemory', // 'mymemory', 'tencent' (only two options now)
+  translationAPI: 'mymemory', // 'mymemory', 'tencent', 'baidu', 'youdao'
   apiKey: '', // API密钥 (kept for compatibility)
   customApiUrl: '', // 自定义API URL (kept for compatibility)
   // 腾讯翻译君专用配置
   tencentApiUrl: 'https://tmt.tencentcloudapi.com/', // 接口API（可选）
-  tencentSecretId: '', // SecretId（可选）
-  tencentSecretKey: '', // SecretKey（必需）
+  tencentApiKey: '', // API密钥（简单认证）
+  tencentSecretId: '', // SecretId（高级认证）
+  tencentSecretKey: '', // SecretKey（高级认证）
   tencentToken: '', // Token（可选，临时凭证需要）
+  // 百度翻译通用API专用配置
+  baiduApiUrl: 'https://fanyi-api.baidu.com/api/trans/vip/translate', // 接口API（可选）
+  baiduApiKey: '', // API密钥（简单认证）
+  baiduAppId: '', // AppId（高级认证，兼容旧版）
+  baiduSecretKey: '', // SecretKey（高级认证，兼容旧版）
   storageLocation: 'local', // 'local' or 'sync'
   lastModified: Date.now()
 };
@@ -53,10 +62,10 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     console.log("Context menu clicked, marking vocab:", info.selectionText);
     const selectedText = info.selectionText?.trim();
 
-    // Validate selection: must be a single word without spaces
-    if (!selectedText || selectedText.includes(' ')) {
-      console.log("Invalid selection - empty or contains spaces");
-      showNotification("请只选择一个单词（不含空格）");
+    // Validate selection: must not be empty
+    if (!selectedText) {
+      console.log("Invalid selection - empty");
+      showNotification("请选择要翻译的文本");
       return;
     }
 
@@ -130,9 +139,14 @@ async function fetchTranslation(word) {
   const apiKey = settings.apiKey || '';
   const customUrl = settings.customApiUrl || '';
   const tencentApiUrl = settings.tencentApiUrl || 'https://tmt.tencentcloudapi.com/';
+  const tencentApiKey = settings.tencentApiKey || '';
   const tencentSecretId = settings.tencentSecretId || '';
   const tencentSecretKey = settings.tencentSecretKey || '';
   const tencentToken = settings.tencentToken || '';
+  const baiduApiUrl = settings.baiduApiUrl || 'https://fanyi-api.baidu.com/api/trans/vip/translate';
+  const baiduApiKey = settings.baiduApiKey || '';
+  const baiduAppId = settings.baiduAppId || '';
+  const baiduSecretKey = settings.baiduSecretKey || '';
 
   try {
     const translations = new Set();
@@ -154,33 +168,22 @@ async function fetchTranslation(word) {
         primaryTranslation = await fetchMyMemoryTranslation(word);
         break;
       case 'tencent':
-        primaryTranslation = await fetchTencentTranslation(word, tencentApiUrl, tencentSecretId, tencentSecretKey, tencentToken);
+        primaryTranslation = await fetchTencentTranslation(word, tencentApiUrl, tencentApiKey, tencentSecretId, tencentSecretKey, tencentToken);
+        break;
+      case 'baidu':
+        primaryTranslation = await fetchBaiduTranslation(word, baiduApiUrl, baiduApiKey, baiduAppId, baiduSecretKey);
+        break;
+      case 'youdao':
+        primaryTranslation = await fetchYoudaoTranslation(word);
         break;
       default:
         primaryTranslation = await fetchMyMemoryTranslation(word);
     }
-    addTranslation(primaryTranslation);
 
-    // Try secondary APIs to get more translations
-    // Try MyMemory if not already used
-    if (api !== 'mymemory') {
-      try {
-        const mymemoryTranslation = await fetchMyMemoryTranslation(word);
-        addTranslation(mymemoryTranslation);
-      } catch (mymemoryError) {
-        console.log("MyMemory secondary attempt failed:", mymemoryError);
-      }
-    }
-
-    if (translations.size > 0) {
-      // Join with Chinese semicolon
-      const finalTranslation = Array.from(translations).join('；');
-      console.log("Returning multiple translations:", finalTranslation);
-      return finalTranslation;
-    } else {
-      console.log("No translations found");
-      return `[无翻译结果: ${word}]`;
-    }
+    // Return primary translation regardless of empty result
+    // Only if primary API throws an exception will we try fallback
+    console.log("Primary translation result:", primaryTranslation);
+    return primaryTranslation || `[无翻译结果: ${word}]`;
   } catch (error) {
     console.warn("Translation API failed:", error);
 
@@ -210,47 +213,6 @@ async function fetchMyMemoryTranslation(word) {
 }
 
 // Dictionary API translation - returns multiple meanings
-async function fetchDictionaryTranslation(word) {
-  try {
-    const apiUrl = `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`;
-    const response = await fetchWithTimeout(apiUrl, {}, 8000);
-    if (!response.ok) {
-      throw new Error(`Dictionary API response: ${response.status}`);
-    }
-    const data = await response.json();
-
-    // Extract all meanings and definitions
-    const meanings = [];
-    if (Array.isArray(data)) {
-      for (const entry of data) {
-        if (entry.meanings && Array.isArray(entry.meanings)) {
-          for (const meaning of entry.meanings) {
-            if (meaning.definitions && Array.isArray(meaning.definitions)) {
-              for (const definition of meaning.definitions) {
-                if (definition.definition) {
-                  meanings.push(definition.definition);
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // Limit to first 5 meanings to avoid too long translation
-    const uniqueMeanings = [...new Set(meanings)].slice(0, 5);
-
-    if (uniqueMeanings.length > 0) {
-      // Join with Chinese semicolon
-      return uniqueMeanings.join('；');
-    }
-
-    return null;
-  } catch (error) {
-    console.warn("Dictionary API failed:", error);
-    return null;
-  }
-}
 
 // LibreTranslate translation
 async function fetchLibreTranslation(word) {
@@ -272,14 +234,19 @@ async function fetchLibreTranslation(word) {
 }
 
 // Tencent translation - Tencent Translation API
-async function fetchTencentTranslation(word, apiUrl, secretId, secretKey, token = '') {
-  if (!secretKey) throw new Error('腾讯翻译API需要SecretKey');
-
-  // 腾讯翻译君API实现（使用TC3-HMAC-SHA256签名）
+async function fetchTencentTranslation(word, apiUrl, apiKey = '', secretId = '', secretKey = '', token = '') {
   // 如果apiUrl为空，使用默认值
   if (!apiUrl || apiUrl.trim() === '') {
     apiUrl = 'https://tmt.tencentcloudapi.com/';
   }
+
+  // 优先使用API Key简单认证
+  if (apiKey && apiKey.trim() !== '') {
+    return await fetchTencentTranslationSimple(word, apiUrl, apiKey);
+  }
+
+  // 否则使用SecretId/SecretKey高级认证
+  if (!secretKey) throw new Error('腾讯翻译API需要SecretKey或API Key');
 
   // 如果secretId为空，尝试使用secretKey作为secretId
   if (!secretId || secretId.trim() === '') {
@@ -504,7 +471,201 @@ async function fetchTencentTranslation(word, apiUrl, secretId, secretKey, token 
   }
 }
 
-// Youdao translation (placeholder - needs implementation)
+// Baidu translation - Baidu Translation API
+async function fetchBaiduTranslation(word, apiUrl, apiKey = '', appId = '', secretKey = '') {
+  // 百度翻译API只支持AppId/SecretKey认证模式
+  if (apiKey && apiKey.trim() !== '' && (!appId || !secretKey)) {
+    throw new Error('百度翻译API已弃用API Key认证模式。请填写下方的AppId和SecretKey（从百度翻译开放平台获取），不要填写API Key字段。');
+  }
+
+  if (!appId || !secretKey) {
+    throw new Error('百度翻译API需要AppId和SecretKey（请从百度翻译开放平台 https://fanyi-api.baidu.com 获取，免费版每月200万字符额度，需先完成实名认证并开通翻译服务）');
+  }
+
+  // 如果apiUrl为空，使用默认值
+  if (!apiUrl || apiUrl.trim() === '') {
+    apiUrl = 'https://fanyi-api.baidu.com/api/trans/vip/translate';
+  }
+
+  try {
+    console.log('使用百度翻译AppId/SecretKey认证模式');
+
+    // 生成随机salt
+    const salt = Date.now().toString();
+    const trimmedWord = word.trim();
+
+    // 根据官方文档：sign = MD5(appid + q + salt + secretKey)
+    // 关键：生成签名时q使用原始文本，不做URL encode
+    // MD5计算使用UTF-8编码
+    const signStr = appId + trimmedWord + salt + secretKey;
+    const sign = md5(signStr);
+
+    console.log('百度翻译签名生成:', {
+      appid: appId,
+      q: trimmedWord,
+      salt: salt,
+      signStringLength: signStr.length,
+      sign: sign
+    });
+
+    // 构建请求参数 - URLSearchParams会自动进行URL编码
+    const params = new URLSearchParams({
+      q: trimmedWord,
+      from: 'auto',
+      to: 'zh',
+      appid: appId,
+      salt: salt,
+      sign: sign
+    });
+
+    const requestUrl = `${apiUrl}?${params.toString()}`;
+    console.log('百度翻译请求URL:', requestUrl);
+
+    const response = await fetchWithTimeout(requestUrl);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('百度翻译API HTTP错误:', errorText);
+      throw new Error(`百度翻译API错误: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('百度翻译API响应:', data);
+
+    if (data.trans_result && Array.isArray(data.trans_result) && data.trans_result.length > 0) {
+      return data.trans_result[0].dst;
+    } else if (data.error_code) {
+      let errorMsg = `百度翻译API错误 (${data.error_code}): ${data.error_msg || '未知错误'}`;
+      switch (data.error_code.toString()) {
+        case '52003':
+          errorMsg = '百度翻译：未授权用户。请检查AppId是否正确、是否已开通翻译服务、是否已完成实名认证';
+          break;
+        case '54001':
+          errorMsg = '百度翻译：签名错误。请检查AppId和SecretKey是否正确。可在 https://md5jiami.51240.com/ 验证签名，输入: ' + appId + trimmedWord + salt + '[您的SecretKey]';
+          break;
+        case '54003':
+          errorMsg = '百度翻译：访问频率受限，请稍后重试';
+          break;
+        case '54004':
+          errorMsg = '百度翻译：账户余额不足，请充值';
+          break;
+        case '58001':
+          errorMsg = '百度翻译：语言方向不支持';
+          break;
+      }
+      throw new Error(errorMsg);
+    } else {
+      throw new Error('无法解析百度翻译API响应');
+    }
+  } catch (error) {
+    console.error('百度翻译API请求失败:', error);
+    console.log('百度翻译失败，尝试使用MyMemory作为备用');
+    return await fetchMyMemoryTranslation(word);
+  }
+
+  // MD5哈希函数 - UTF-8编码，返回32位小写十六进制
+  function md5(message) {
+    return CryptoJS.MD5(message).toString();
+  }
+}
+
+// 腾讯翻译简单API Key认证
+async function fetchTencentTranslationSimple(word, apiUrl, apiKey) {
+  try {
+    const urlObj = new URL(apiUrl);
+    const host = urlObj.host;
+
+    // 简单API Key认证 - 通过请求头传递
+    const headers = {
+      'Content-Type': 'application/json',
+      'X-TC-Key': apiKey,
+      'X-TC-Action': 'TextTranslate',
+      'X-TC-Version': '2018-03-21',
+      'X-TC-Region': 'ap-beijing',
+      'X-TC-Language': 'zh-CN',
+      'X-TC-Timestamp': Math.floor(Date.now() / 1000).toString()
+    };
+
+    // 请求体
+    const payload = {
+      SourceText: word,
+      Source: 'en',
+      Target: 'zh',
+      ProjectId: 0
+    };
+
+    console.log('腾讯翻译API请求 (简单认证模式):', { apiUrl, apiKey: apiKey.substring(0, 8) + '...' });
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`腾讯翻译API错误: ${response.status} ${response.statusText} - ${errorText}`);
+    }
+
+    const data = await response.json();
+
+    // 解析响应
+    if (data.Response && data.Response.TargetText) {
+      return data.Response.TargetText;
+    } else if (data.Response && data.Response.Error) {
+      throw new Error(`腾讯翻译API返回错误: ${data.Response.Error.Message || '未知错误'}`);
+    } else {
+      throw new Error('无法解析腾讯翻译API响应');
+    }
+  } catch (error) {
+    console.error('腾讯翻译简单API Key认证失败:', error);
+    // Fallback to MyMemory API
+    console.log('腾讯翻译失败，尝试使用MyMemory作为备用');
+    return await fetchMyMemoryTranslation(word);
+  }
+}
+
+// Youdao dictionary translation API
+async function fetchYoudaoTranslation(word) {
+  try {
+    const apiUrl = `https://dict.youdao.com/suggest?num=5&ver=3.0&doctype=json&cache=false&le=en&q=${encodeURIComponent(word)}`;
+    console.log('Fetching Youdao translation for:', word, 'URL:', apiUrl);
+
+    const response = await fetchWithTimeout(apiUrl, {}, 8000);
+    if (!response.ok) {
+      throw new Error(`Youdao API response: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('Youdao API response:', data);
+
+    // 解析有道词典返回的数据
+    if (data.result && data.result.code === 200 && data.data && data.data.entries) {
+      // 提取所有条目的解释
+      const explanations = [];
+      for (const entry of data.data.entries) {
+        if (entry.explain && entry.entry) {
+          // 格式化解释：entry: explain
+          explanations.push(`${entry.entry}: ${entry.explain}`);
+        }
+      }
+
+      if (explanations.length > 0) {
+        // 限制返回的解释数量，避免过长
+        const maxExplanations = 5;
+        const limitedExplanations = explanations.slice(0, maxExplanations);
+        // 使用中文分号连接
+        return limitedExplanations.join('；');
+      }
+    }
+
+    // 如果没有有效数据，返回null
+    return null;
+  } catch (error) {
+    console.warn('Youdao dictionary API failed:', error);
+    return null;
+  }
+}
 
 // Helper function for fetch with timeout
 async function fetchWithTimeout(url, options = {}, timeout = 10000) {
@@ -527,12 +688,6 @@ async function tryFallbackTranslation(word) {
 }
 
 // Prompt user for manual translation
-function promptForTranslation(word) {
-  // In service worker we can't show UI directly, so we'll use a simple fallback
-  // In a real implementation, we might use chrome.scripting.executeScript to show a prompt
-  // For simplicity, return a placeholder and let content script handle it
-  return `[请手动输入翻译: ${word}]`;
-}
 
 // Generate unique ID for vocabulary record
 function generateId(...args) {

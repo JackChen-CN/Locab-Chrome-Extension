@@ -4,14 +4,20 @@
 const DEFAULT_SETTINGS = {
   uiMode: 'tab', // 'tab' or 'popup'
   autoTranslation: true,
-  translationAPI: 'mymemory', // 'mymemory', 'tencent' (only two options now)
+  translationAPI: 'mymemory', // 'mymemory', 'tencent', 'baidu', 'youdao'
   apiKey: '', // API密钥 (kept for compatibility)
   customApiUrl: '', // 自定义API URL (kept for compatibility)
   // 腾讯翻译君专用配置
   tencentApiUrl: 'https://tmt.tencentcloudapi.com/', // 接口API（可选）
-  tencentSecretId: '', // SecretId（可选）
-  tencentSecretKey: '', // SecretKey（必需）
+  tencentApiKey: '', // API密钥（简单认证）
+  tencentSecretId: '', // SecretId（高级认证）
+  tencentSecretKey: '', // SecretKey（高级认证）
   tencentToken: '', // Token（可选，临时凭证需要）
+  // 百度翻译通用API专用配置
+  baiduApiUrl: 'https://fanyi-api.baidu.com/api/trans/vip/translate', // 接口API（可选）
+  baiduApiKey: '', // API密钥（简单认证）
+  baiduAppId: '', // AppId（高级认证，兼容旧版）
+  baiduSecretKey: '', // SecretKey（高级认证，兼容旧版）
   storageLocation: 'local', // 'local' or 'sync'
   lastModified: Date.now()
 };
@@ -19,7 +25,8 @@ const DEFAULT_SETTINGS = {
 // DOM elements
 let uiModeTab, uiModePopup, autoTranslationCheckbox, translationAPISelect, storageLocationSelect;
 let apiKeyContainer, apiKeyInput, apiKeyHint, customApiContainer, customApiUrlInput;
-let tencentConfigContainer, tencentApiUrlInput, tencentSecretIdInput, tencentSecretKeyInput, tencentTokenInput;
+let tencentConfigContainer, tencentApiUrlInput, tencentApiKeyInput, tencentSecretIdInput, tencentSecretKeyInput, tencentTokenInput;
+let baiduConfigContainer, baiduApiUrlInput, baiduApiKeyInput, baiduAppIdInput, baiduSecretKeyInput;
 let exportBtn, importBtn, clearBtn, saveBtn, resetBtn, backBtn;
 let wordCountEl, lastUpdatedEl, storageUsageEl, storageWarningEl;
 
@@ -40,9 +47,15 @@ function init() {
   customApiUrlInput = document.getElementById('custom-api-url');
   tencentConfigContainer = document.getElementById('tencent-config-container');
   tencentApiUrlInput = document.getElementById('tencent-api-url');
+  tencentApiKeyInput = document.getElementById('tencent-api-key');
   tencentSecretIdInput = document.getElementById('tencent-secret-id');
   tencentSecretKeyInput = document.getElementById('tencent-secret-key');
   tencentTokenInput = document.getElementById('tencent-token');
+  baiduConfigContainer = document.getElementById('baidu-config-container');
+  baiduApiUrlInput = document.getElementById('baidu-api-url');
+  baiduApiKeyInput = document.getElementById('baidu-api-key');
+  baiduAppIdInput = document.getElementById('baidu-app-id');
+  baiduSecretKeyInput = document.getElementById('baidu-secret-key');
   exportBtn = document.getElementById('export-btn');
   importBtn = document.getElementById('import-btn');
   clearBtn = document.getElementById('clear-btn');
@@ -119,9 +132,14 @@ async function loadSettings() {
     apiKeyInput.value = settings.apiKey || '';
     customApiUrlInput.value = settings.customApiUrl || '';
     tencentApiUrlInput.value = settings.tencentApiUrl || 'https://tmt.tencentcloudapi.com/';
+    tencentApiKeyInput.value = settings.tencentApiKey || '';
     tencentSecretIdInput.value = settings.tencentSecretId || '';
     tencentSecretKeyInput.value = settings.tencentSecretKey || '';
     tencentTokenInput.value = settings.tencentToken || '';
+    baiduApiUrlInput.value = settings.baiduApiUrl || 'https://fanyi-api.baidu.com/api/trans/vip/translate';
+    baiduApiKeyInput.value = settings.baiduApiKey || '';
+    baiduAppIdInput.value = settings.baiduAppId || '';
+    baiduSecretKeyInput.value = settings.baiduSecretKey || '';
     updateApiFieldsVisibility();
   } catch (error) {
     console.error('Error loading settings:', error);
@@ -213,9 +231,14 @@ async function saveSettings() {
       apiKey: apiKeyInput.value,
       customApiUrl: customApiUrlInput.value,
       tencentApiUrl: tencentApiUrlInput.value,
+      tencentApiKey: tencentApiKeyInput.value,
       tencentSecretId: tencentSecretIdInput.value,
       tencentSecretKey: tencentSecretKeyInput.value,
       tencentToken: tencentTokenInput.value,
+      baiduApiUrl: baiduApiUrlInput.value,
+      baiduApiKey: baiduApiKeyInput.value,
+      baiduAppId: baiduAppIdInput.value,
+      baiduSecretKey: baiduSecretKeyInput.value,
       storageLocation: storageLocationSelect.value,
       lastModified: Date.now()
     };
@@ -274,9 +297,14 @@ async function resetToDefaults() {
     apiKeyInput.value = DEFAULT_SETTINGS.apiKey;
     customApiUrlInput.value = DEFAULT_SETTINGS.customApiUrl;
     tencentApiUrlInput.value = DEFAULT_SETTINGS.tencentApiUrl;
+    tencentApiKeyInput.value = DEFAULT_SETTINGS.tencentApiKey;
     tencentSecretIdInput.value = DEFAULT_SETTINGS.tencentSecretId;
     tencentSecretKeyInput.value = DEFAULT_SETTINGS.tencentSecretKey;
     tencentTokenInput.value = DEFAULT_SETTINGS.tencentToken;
+    baiduApiUrlInput.value = DEFAULT_SETTINGS.baiduApiUrl;
+    baiduApiKeyInput.value = DEFAULT_SETTINGS.baiduApiKey;
+    baiduAppIdInput.value = DEFAULT_SETTINGS.baiduAppId;
+    baiduSecretKeyInput.value = DEFAULT_SETTINGS.baiduSecretKey;
     updateApiFieldsVisibility();
 
     // Update extension action
@@ -427,7 +455,9 @@ function formatTime(timestamp) {
 function updateApiFieldsVisibility() {
   const selectedApi = translationAPISelect.value;
   const isTencent = selectedApi === 'tencent';
+  const isBaidu = selectedApi === 'baidu';
   const isCustom = selectedApi === 'custom';
+  const isYoudao = selectedApi === 'youdao';
 
   // Show/hide API key container (for compatibility, not used for tencent)
   if (apiKeyContainer) {
@@ -444,14 +474,25 @@ function updateApiFieldsVisibility() {
     tencentConfigContainer.style.display = isTencent ? 'block' : 'none';
   }
 
+  // Show/hide Baidu config container
+  if (baiduConfigContainer) {
+    baiduConfigContainer.style.display = isBaidu ? 'block' : 'none';
+  }
+
   // Update API key hint
   if (apiKeyHint) {
     switch (selectedApi) {
       case 'tencent':
         apiKeyHint.textContent = '需要腾讯翻译君的API密钥，请访问腾讯云控制台获取。';
         break;
+      case 'baidu':
+        apiKeyHint.textContent = '需要百度翻译通用API的AppId和SecretKey（免费版每月200万字符额度），请访问百度翻译开放平台获取并完成实名认证。';
+        break;
       case 'custom':
         apiKeyHint.textContent = '输入自定义API密钥（如果需要）。';
+        break;
+      case 'youdao':
+        apiKeyHint.textContent = '有道词典API无需配置，直接使用。';
         break;
       default:
         apiKeyHint.textContent = '';

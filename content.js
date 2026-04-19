@@ -4,6 +4,20 @@
 // Global toast container for notifications
 let toastContainer = null;
 
+// Helper function to format translation text with line breaks
+function formatTranslation(translationText) {
+  if (!translationText) return '';
+  // Escape HTML special characters
+  const escaped = translationText
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+  // Replace Chinese semicolon with line break
+  return escaped.replace(/；/g, '<br>');
+}
+
 // Message listener for background script and popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log("Content script received message:", request.action, request);
@@ -588,6 +602,8 @@ function showConfirmationDialog(word, translation) {
       padding: 24px;
       width: 400px;
       max-width: 90vw;
+      max-height: 80vh;
+      overflow-y: auto;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
       border: 1px solid #45475a;
     `;
@@ -629,9 +645,10 @@ function showConfirmationDialog(word, translation) {
       margin-bottom: 20px;
       border-left: 4px solid #a6e3a1;
     `;
+    const formattedTranslation = formatTranslation(translation);
     translationEl.innerHTML = `
       <div style="font-size: 14px; color: #a6adc8; margin-bottom: 4px;">翻译</div>
-      <div style="font-size: 18px; color: #a6e3a1; font-weight: 600;">${translation}</div>
+      <div style="font-size: 18px; color: #a6e3a1; font-weight: 600;">${formattedTranslation}</div>
     `;
     dialog.appendChild(translationEl);
 

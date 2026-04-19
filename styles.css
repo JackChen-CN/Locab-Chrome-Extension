@@ -31,20 +31,41 @@ body {
   width: 100%;
   min-width: 300px;
   min-height: 400px;
-  max-height: 800px;
-  overflow: auto;
+  max-height: 600px;
+  overflow: hidden;
   font-size: 15px;
   line-height: 1.5;
 }
 
+/* Make container scrollable */
 .container {
   width: 100%;
   min-width: 300px;
   height: 100%;
+  max-height: 600px;
   display: flex;
   flex-direction: column;
   padding: 20px;
   gap: 20px;
+  overflow-y: auto;
+}
+
+.container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.container::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+  border-radius: 4px;
+}
+
+.container::-webkit-scrollbar-thumb {
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+}
+
+.container::-webkit-scrollbar-thumb:hover {
+  background: var(--border-color);
 }
 
 /* Header */
@@ -138,7 +159,22 @@ header h1 {
 .tab-content {
   display: none;
   flex: 1;
-  overflow: hidden;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.tab-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.tab-content::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+  border-radius: 3px;
+}
+
+.tab-content::-webkit-scrollbar-thumb {
+  background: var(--bg-tertiary);
+  border-radius: 3px;
 }
 
 .tab-content.active {
@@ -404,6 +440,10 @@ header h1 {
   background-color: var(--bg-secondary);
   border-radius: var(--border-radius-sm);
   border-left: 3px solid var(--accent-secondary);
+  max-height: 80px;
+  overflow-y: auto;
+  word-wrap: break-word;
+  word-break: break-word;
 }
 
 .vocab-meta {
@@ -551,6 +591,10 @@ header h1 {
   background-color: var(--bg-primary);
   border-radius: var(--border-radius-sm);
   border-left: 4px solid var(--accent-secondary);
+  max-height: 120px;
+  overflow-y: auto;
+  word-wrap: break-word;
+  word-break: break-word;
 }
 
 .position-info {
@@ -1123,6 +1167,10 @@ header h1 {
   background-color: var(--bg-primary);
   border-radius: var(--border-radius-sm);
   border-left: 3px solid var(--accent-secondary);
+  max-height: 100px;
+  overflow-y: auto;
+  word-wrap: break-word;
+  word-break: break-word;
 }
 
 .detail-meta {
@@ -1367,4 +1415,86 @@ header h1 {
   color: var(--text-tertiary);
   margin-top: 4px;
   margin-bottom: 0;
+}
+
+/* 翻译文本溢出控制 */
+.vocab-translation {
+  max-height: 80px;
+  overflow-y: auto;
+  word-wrap: break-word;
+  word-break: break-word;
+  white-space: normal;
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 1;
+  min-width: 0;
+  padding: 4px 8px;
+}
+
+.detail-translation {
+  max-height: 150px;
+  overflow-y: auto;
+  word-wrap: break-word;
+  word-break: break-word;
+  white-space: normal;
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 1;
+  min-width: 0;
+  padding: 6px 10px;
+}
+
+.group-translation {
+  max-height: 80px;
+  overflow-y: auto;
+  word-wrap: break-word;
+  word-break: break-word;
+  white-space: normal;
+  display: inline-block;
+  flex-shrink: 1;
+  min-width: 0;
+  padding: 4px 8px;
+}
+
+.translation {
+  max-height: 100px;
+  overflow-y: auto;
+  word-wrap: break-word;
+  word-break: break-word;
+  white-space: normal;
+  padding: 12px;
+}
+
+/* 自定义翻译元素的滚动条 */
+.vocab-translation::-webkit-scrollbar,
+.group-translation::-webkit-scrollbar,
+.detail-translation::-webkit-scrollbar,
+.translation::-webkit-scrollbar,
+.detail-sentence-text::-webkit-scrollbar,
+.vocab-sentence::-webkit-scrollbar,
+.sentence::-webkit-scrollbar {
+  width: 4px;
+}
+
+.vocab-translation::-webkit-scrollbar-track,
+.group-translation::-webkit-scrollbar-track,
+.detail-translation::-webkit-scrollbar-track,
+.translation::-webkit-scrollbar-track,
+.detail-sentence-text::-webkit-scrollbar-track,
+.vocab-sentence::-webkit-scrollbar-track,
+.sentence::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 2px;
+}
+
+.vocab-translation::-webkit-scrollbar-thumb,
+.group-translation::-webkit-scrollbar-thumb,
+.detail-translation::-webkit-scrollbar-thumb,
+.translation::-webkit-scrollbar-thumb,
+.detail-sentence-text::-webkit-scrollbar-thumb,
+.vocab-sentence::-webkit-scrollbar-thumb,
+.sentence::-webkit-scrollbar-thumb {
+  background: var(--accent-success);
+  border-radius: 2px;
+  opacity: 0.5;
 }

@@ -81,6 +81,8 @@
           <select id="translation-api">
             <option value="mymemory">MyMemory API (默认)</option>
             <option value="tencent">腾讯翻译君 (需要配置)</option>
+            <option value="baidu">百度通用翻译 (需要配置)</option>
+            <option value="youdao">有道词典 (无需配置)</option>
           </select>
         </div>
         <p class="setting-hint">选择翻译服务提供商</p>
@@ -109,14 +111,19 @@
             <p class="field-hint">腾讯翻译API端点，默认已填</p>
           </div>
           <div class="config-group">
-            <label for="tencent-secret-id">SecretId（可选）</label>
-            <input type="text" id="tencent-secret-id" placeholder="SecretId">
-            <p class="field-hint">腾讯云API访问密钥ID</p>
+            <label for="tencent-api-key">API密钥（简单认证）</label>
+            <input type="text" id="tencent-api-key" placeholder="API Key">
+            <p class="field-hint">简单API密钥认证，如果使用SecretId/SecretKey可不填</p>
           </div>
           <div class="config-group">
-            <label for="tencent-secret-key">SecretKey（必需）</label>
+            <label for="tencent-secret-id">SecretId（高级认证）</label>
+            <input type="text" id="tencent-secret-id" placeholder="SecretId">
+            <p class="field-hint">腾讯云API访问密钥ID，与SecretKey一起使用</p>
+          </div>
+          <div class="config-group">
+            <label for="tencent-secret-key">SecretKey（高级认证）</label>
             <input type="text" id="tencent-secret-key" placeholder="SecretKey">
-            <p class="field-hint">腾讯云API访问密钥，必需</p>
+            <p class="field-hint">腾讯云API访问密钥，与SecretId一起使用</p>
           </div>
           <div class="config-group">
             <label for="tencent-token">Token（可选）</label>
@@ -125,6 +132,36 @@
           </div>
         </div>
         <p class="setting-hint">请从腾讯云控制台获取API密钥</p>
+      </div>
+
+      <div class="setting-item" id="baidu-config-container" style="display: none;">
+        <div class="setting-label">
+          <i class="fas fa-server"></i>
+          <span>百度翻译配置</span>
+        </div>
+        <div class="setting-control">
+          <div class="config-group">
+            <label for="baidu-api-url">接口API（可选）</label>
+            <input type="text" id="baidu-api-url" placeholder="https://fanyi-api.baidu.com/api/trans/vip/translate">
+            <p class="field-hint">百度翻译API端点，默认已填</p>
+          </div>
+          <div class="config-group">
+            <label for="baidu-api-key" style="color: #9399b2;">API密钥（已弃用）</label>
+            <input type="text" id="baidu-api-key" placeholder="API Key">
+            <p class="field-hint" style="color: #f38ba8;">⚠️ 此字段已弃用，百度翻译API现仅支持下方的AppId+SecretKey认证</p>
+          </div>
+          <div class="config-group">
+            <label for="baidu-app-id">AppId（高级认证）</label>
+            <input type="text" id="baidu-app-id" placeholder="AppId">
+            <p class="field-hint">百度翻译API应用ID，与SecretKey一起使用</p>
+          </div>
+          <div class="config-group">
+            <label for="baidu-secret-key">SecretKey（高级认证）</label>
+            <input type="text" id="baidu-secret-key" placeholder="SecretKey">
+            <p class="field-hint">百度翻译API应用密钥，与AppId一起使用</p>
+          </div>
+        </div>
+        <p class="setting-hint">请从<a href="https://fanyi-api.baidu.com" target="_blank">百度翻译开放平台</a>获取AppId和SecretKey（免费版每月200万字符额度，需完成实名认证）</p>
       </div>
 
       <div class="setting-item" id="custom-api-container" style="display: none;">
