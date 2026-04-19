@@ -12,6 +12,7 @@ const DEFAULT_SETTINGS = {
   tencentApiUrl: 'https://tmt.tencentcloudapi.com/', // 接口API（可选）
   tencentSecretId: '', // SecretId（可选）
   tencentSecretKey: '', // SecretKey（必需）
+  tencentToken: '', // Token（可选，临时凭证需要）
   storageLocation: 'local', // 'local' or 'sync'
   lastModified: Date.now()
 };
@@ -131,6 +132,7 @@ async function fetchTranslation(word) {
   const tencentApiUrl = settings.tencentApiUrl || 'https://tmt.tencentcloudapi.com/';
   const tencentSecretId = settings.tencentSecretId || '';
   const tencentSecretKey = settings.tencentSecretKey || '';
+  const tencentToken = settings.tencentToken || '';
 
   try {
     const translations = new Set();
@@ -152,7 +154,7 @@ async function fetchTranslation(word) {
         primaryTranslation = await fetchMyMemoryTranslation(word);
         break;
       case 'tencent':
-        primaryTranslation = await fetchTencentTranslation(word, tencentApiUrl, tencentSecretId, tencentSecretKey);
+        primaryTranslation = await fetchTencentTranslation(word, tencentApiUrl, tencentSecretId, tencentSecretKey, tencentToken);
         break;
       default:
         primaryTranslation = await fetchMyMemoryTranslation(word);
@@ -270,7 +272,7 @@ async function fetchLibreTranslation(word) {
 }
 
 // Tencent translation - Tencent Translation API
-async function fetchTencentTranslation(word, apiUrl, secretId, secretKey) {
+async function fetchTencentTranslation(word, apiUrl, secretId, secretKey, token = '') {
   if (!secretKey) throw new Error('腾讯翻译API需要SecretKey');
 
   // 腾讯翻译君API实现（使用TC3-HMAC-SHA256签名）
@@ -311,8 +313,8 @@ async function fetchTencentTranslation(word, apiUrl, secretId, secretKey) {
       date = new Date(timestamp * 1000).toISOString().split('T')[0];
     }
 
-    // Token是可选的，用于临时凭证，目前暂不实现
-    const token = '';
+    // Token是可选的，用于临时凭证
+    // token参数从函数参数传入
 
     // 请求体
     const payload = {

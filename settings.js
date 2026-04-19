@@ -11,6 +11,7 @@ const DEFAULT_SETTINGS = {
   tencentApiUrl: 'https://tmt.tencentcloudapi.com/', // 接口API（可选）
   tencentSecretId: '', // SecretId（可选）
   tencentSecretKey: '', // SecretKey（必需）
+  tencentToken: '', // Token（可选，临时凭证需要）
   storageLocation: 'local', // 'local' or 'sync'
   lastModified: Date.now()
 };
@@ -18,7 +19,7 @@ const DEFAULT_SETTINGS = {
 // DOM elements
 let uiModeTab, uiModePopup, autoTranslationCheckbox, translationAPISelect, storageLocationSelect;
 let apiKeyContainer, apiKeyInput, apiKeyHint, customApiContainer, customApiUrlInput;
-let tencentConfigContainer, tencentApiUrlInput, tencentSecretIdInput, tencentSecretKeyInput;
+let tencentConfigContainer, tencentApiUrlInput, tencentSecretIdInput, tencentSecretKeyInput, tencentTokenInput;
 let exportBtn, importBtn, clearBtn, saveBtn, resetBtn, backBtn;
 let wordCountEl, lastUpdatedEl, storageUsageEl, storageWarningEl;
 
@@ -41,6 +42,7 @@ function init() {
   tencentApiUrlInput = document.getElementById('tencent-api-url');
   tencentSecretIdInput = document.getElementById('tencent-secret-id');
   tencentSecretKeyInput = document.getElementById('tencent-secret-key');
+  tencentTokenInput = document.getElementById('tencent-token');
   exportBtn = document.getElementById('export-btn');
   importBtn = document.getElementById('import-btn');
   clearBtn = document.getElementById('clear-btn');
@@ -119,6 +121,7 @@ async function loadSettings() {
     tencentApiUrlInput.value = settings.tencentApiUrl || 'https://tmt.tencentcloudapi.com/';
     tencentSecretIdInput.value = settings.tencentSecretId || '';
     tencentSecretKeyInput.value = settings.tencentSecretKey || '';
+    tencentTokenInput.value = settings.tencentToken || '';
     updateApiFieldsVisibility();
   } catch (error) {
     console.error('Error loading settings:', error);
@@ -212,6 +215,7 @@ async function saveSettings() {
       tencentApiUrl: tencentApiUrlInput.value,
       tencentSecretId: tencentSecretIdInput.value,
       tencentSecretKey: tencentSecretKeyInput.value,
+      tencentToken: tencentTokenInput.value,
       storageLocation: storageLocationSelect.value,
       lastModified: Date.now()
     };
@@ -272,6 +276,7 @@ async function resetToDefaults() {
     tencentApiUrlInput.value = DEFAULT_SETTINGS.tencentApiUrl;
     tencentSecretIdInput.value = DEFAULT_SETTINGS.tencentSecretId;
     tencentSecretKeyInput.value = DEFAULT_SETTINGS.tencentSecretKey;
+    tencentTokenInput.value = DEFAULT_SETTINGS.tencentToken;
     updateApiFieldsVisibility();
 
     // Update extension action
