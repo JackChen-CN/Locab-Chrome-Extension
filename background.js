@@ -331,6 +331,9 @@ async function fetchTencentTranslation(word, apiUrl, secretId, secretKey) {
     const credentialScope = `${date}/${service}/tc3_request`;
     const stringToSign = `${algorithm}\n${timestamp}\n${credentialScope}\n${hashedCanonicalRequest}`;
 
+    console.log('待签字符串 stringToSign:', stringToSign);
+    console.log('凭证范围 credentialScope:', credentialScope);
+
     // 3. 计算签名
     const signature = await calculateTc3Signature(secretKey, date, service, stringToSign);
 
@@ -395,26 +398,55 @@ async function fetchTencentTranslation(word, apiUrl, secretId, secretKey) {
     return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
   }
 
-  // 辅助函数：计算TC3签名
+  // 辅助函数：计算TC3签名（使用字节数组传递中间结果）
   async function calculateTc3Signature(secretKey, date, service, stringToSign) {
-    // 计算签名密钥
-    const kDate = await hmacSha256(`TC3${secretKey}`, date);
-    console.log('kDate (hex):', kDate.substring(0, 32) + '...');
-    const kService = await hmacSha256(kDate, service);
-    console.log('kService (hex):', kService.substring(0, 32) + '...');
-    const kSigning = await hmacSha256(kService, 'tc3_request');
-    console.log('kSigning (hex):', kSigning.substring(0, 32) + '...');
+    // 计算签名密钥链，保持中间结果为字节数组
+    const kDate = await hmacSha256Bytes(`TC3${secretKey}`, date);
+    console.log('kDate (hex):', bytesToHex(kDate).substring(0, 32) + '...');
+
+    const kService = await hmacSha256Bytes(kDate, service);
+    console.log('kService (hex):', bytesToHex(kService).substring(0, 32) + '...');
+
+    const kSigning = await hmacSha256Bytes(kService, 'tc3_request');
+    console.log('kSigning (hex):', bytesToHex(kSigning).substring(0, 32) + '...');
 
     // 计算签名
-    const signature = await hmacSha256(kSigning, stringToSign);
+    const signatureBytes = await hmacSha256Bytes(kSigning, stringToSign);
+    const signature = bytesToHex(signatureBytes);
     console.log('签名 (hex):', signature);
     return signature;
   }
 
-  // 辅助函数：HMAC-SHA256
-  async function hmacSha256(key, message) {
+  // 辅助函数：十六进制字符串转字节数组
+  function hexToBytes(hex) {
+    const bytes = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < hex.length; i += 2) {
+      bytes[i / 2] = parseInt(hex.substring(i, i + 2), 16);
+    }
+    return bytes;
+  }
+
+  // 辅助函数：字节数组转十六进制字符串
+  function bytesToHex(bytes) {
+    return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  // 辅助函数：HMAC-SHA256（返回字节数组）
+  async function hmacSha256Bytes(key, message) {
     const encoder = new TextEncoder();
-    const keyData = encoder.encode(key);
+
+    // 处理密钥：可以是字符串或字节数组
+    let keyData;
+    if (typeof key === 'string') {
+      keyData = encoder.encode(key);
+    } else if (key instanceof Uint8Array) {
+      keyData = key;
+    } else if (typeof key === 'object' && key.byteLength !== undefined) {
+      keyData = key;
+    } else {
+      throw new Error('无效的密钥类型');
+    }
+
     const messageData = encoder.encode(message);
 
     // 导入密钥
@@ -428,7 +460,13 @@ async function fetchTencentTranslation(word, apiUrl, secretId, secretKey) {
 
     // 计算HMAC
     const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
-    return Array.from(new Uint8Array(signature)).map(b => b.toString(16).padStart(2, '0')).join('');
+    return new Uint8Array(signature);
+  }
+
+  // 辅助函数：HMAC-SHA256（返回十六进制字符串，兼容现有代码）
+  async function hmacSha256(key, message) {
+    const bytes = await hmacSha256Bytes(key, message);
+    return bytesToHex(bytes);
   }
 }
 
