@@ -295,8 +295,22 @@ async function fetchTencentTranslation(word, apiUrl, secretId, secretKey) {
     const region = 'ap-beijing'; // 根据示例改为北京区域
     const action = 'TextTranslate';
     const version = '2018-03-21';
-    const timestamp = Math.floor(Date.now() / 1000);
-    const date = new Date(timestamp * 1000).toISOString().split('T')[0];
+
+    // 调试：使用示例中的时间戳进行签名验证
+    // 实际生产环境应该使用当前时间戳
+    const debugMode = false; // 设置为true使用示例时间戳进行调试
+    let timestamp, date;
+
+    if (debugMode) {
+      // 使用示例中的时间戳：2026-04-19对应的1776566428
+      timestamp = 1776566428;
+      date = '2026-04-19';
+      console.warn('⚠️ 调试模式：使用固定时间戳', timestamp, '和日期', date);
+    } else {
+      timestamp = Math.floor(Date.now() / 1000);
+      date = new Date(timestamp * 1000).toISOString().split('T')[0];
+    }
+
     // Token是可选的，用于临时凭证，目前暂不实现
     const token = '';
 
@@ -308,7 +322,7 @@ async function fetchTencentTranslation(word, apiUrl, secretId, secretKey) {
       ProjectId: 0
     };
 
-    console.log('腾讯翻译API调试信息:', { host, path, timestamp, date, secretId: secretId.substring(0, 8) + '...' });
+    console.log('腾讯翻译API调试信息:', { host, path, timestamp, date, secretId: secretId.substring(0, 8) + '...', debugMode });
 
     // 生成签名所需组件
     const service = 'tmt';
@@ -322,16 +336,34 @@ async function fetchTencentTranslation(word, apiUrl, secretId, secretKey) {
     const signedHeaders = 'content-type;host';
     const hashedRequestPayload = await sha256(JSON.stringify(payload));
 
-    const canonicalRequest = `${httpRequestMethod}\n${canonicalUri}\n${canonicalQueryString}\n${canonicalHeaders}\n${signedHeaders}\n${hashedRequestPayload}`;
-    const hashedCanonicalRequest = await sha256(canonicalRequest);
+    console.log('请求体JSON:', JSON.stringify(payload));
+    console.log('请求体哈希:', hashedRequestPayload);
 
-    console.log('规范请求哈希:', hashedCanonicalRequest.substring(0, 32) + '...');
+    const canonicalRequest = `${httpRequestMethod}\n${canonicalUri}\n${canonicalQueryString}\n${canonicalHeaders}\n${signedHeaders}\n${hashedRequestPayload}`;
+
+    console.log('规范请求 (原始):');
+    console.log('1. HTTP方法:', httpRequestMethod);
+    console.log('2. URI:', canonicalUri);
+    console.log('3. 查询字符串:', canonicalQueryString);
+    console.log('4. 规范头部:', canonicalHeaders.replace(/\n/g, '\\n'));
+    console.log('5. 签名头部:', signedHeaders);
+    console.log('6. 请求体哈希:', hashedRequestPayload);
+
+    const hashedCanonicalRequest = await sha256(canonicalRequest);
+    console.log('完整规范请求字符串:', canonicalRequest.replace(/\n/g, '\\n'));
+    console.log('规范请求哈希:', hashedCanonicalRequest);
+    console.log('规范请求哈希 (截断):', hashedCanonicalRequest.substring(0, 32) + '...');
 
     // 2. 待签字符串
     const credentialScope = `${date}/${service}/tc3_request`;
     const stringToSign = `${algorithm}\n${timestamp}\n${credentialScope}\n${hashedCanonicalRequest}`;
 
     console.log('待签字符串 stringToSign:', stringToSign);
+    console.log('待签字符串各部分:');
+    console.log('1. 算法:', algorithm);
+    console.log('2. 时间戳:', timestamp);
+    console.log('3. 凭证范围:', credentialScope);
+    console.log('4. 规范请求哈希:', hashedCanonicalRequest);
     console.log('凭证范围 credentialScope:', credentialScope);
 
     // 3. 计算签名
